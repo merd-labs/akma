@@ -146,7 +146,7 @@ Primary published source `3a3071139b6474c8ba393ccdf800e98be55c2d5a`, a non-debug
 
 Physical installation PASS: exit 0, 105,221 ms, completed 20:32:04 UTC. The installed APK was independently hashed and exactly matches the release SHA above. Native initialization PASS: 64,651 ms. Miguel confirms Akma reaches Ready without the earlier Retry step. The Activity launch observer timed out after 90 s; Activity TotalTime/WaitTime are NOT TESTED, rather than an inferred application failure.
 
-At 20:37:02 UTC, the running release process reported PSS 2,174,437 kB and RSS 2,269,032 kB; thermal status 0. At 20:40:19 UTC, PSS was 2,008,771 kB, RSS 2,112,900 kB and SWAP PSS 167 kB; thermal status 0. Airplane mode 1, Wi-Fi setting 0 / service disabled and default-subscription mobile data 0 were explicitly reverified before the release generation request. Release inference, lifecycle/cancellation/retry and repeated-generation results remain pending. Earlier debug APK results are not substituted for these gates.
+At 20:37:02 UTC, the running release process reported PSS 2,174,437 kB and RSS 2,269,032 kB; thermal status 0. At 20:40:19 UTC, PSS was 2,008,771 kB, RSS 2,112,900 kB and SWAP PSS 167 kB; thermal status 0. Airplane mode 1, Wi-Fi setting 0 / service disabled and default-subscription mobile data 0 were explicitly reverified before the release generation request. The first exact-release offline inference attempt completed, as recorded below. Two consecutive release attempts completed; the remaining matrix and restart/cancellation gates were stopped at Miguel's instruction when the official demo device changed. Earlier debug APK results are not substituted for these gates.
 
 ## Second attempt — Filipino semantic failure
 
@@ -208,8 +208,10 @@ These gates refer only to frozen release SHA `3e9fe18697409195323af83c05286109b6
 | Activity launch latency | NOT TESTED | Observer timeout at 90 s; no valid Activity timing returned |
 | Explicit offline radio state | PASS | Airplane 1; Wi-Fi setting 0 and service disabled; selected mobile-data setting 0 |
 | Native English analysis completion | PASS | 47,791 ms; 204 raw characters logged; contents remain private |
-| English draft completion and fidelity | NOT TESTED | User attempt in progress at this evidence checkpoint |
-| Three consecutive release generations / Filipino / Taglish | NOT TESTED | Initial debug sequence is historical evidence only |
+| English draft completion and fidelity | PASS | Native draft 37,249 ms; 72-character actual reply retained privately; user confirms intent preserved |
+| Three consecutive release attempts | NOT TESTED | Only two release attempts completed before the slot was released |
+| Release Filipino fidelity | FAIL | Native analysis 40,746 ms; draft 43,509 ms; user reports wrong language or intent |
+| Release Taglish | NOT TESTED | Pending manual request withdrawn before any observed start |
 | Ready after a second release process restart | NOT TESTED | Separate full restart pending |
 | Release native cancellation and retry | NOT TESTED | Domain regression tests are not physical cancellation evidence |
 | Release memory and thermal observations | PASS | Sampled post-init PSS 2,174,437 kB, RSS 2,269,032 kB; thermal 0; no peak-memory claim |
@@ -218,3 +220,21 @@ These gates refer only to frozen release SHA `3e9fe18697409195323af83c05286109b6
 | Camon 30 or Infinix exact-release compatibility | NOT TESTED | Requires separate exclusive device gate |
 | Native Windows tooling | NOT TESTED | PowerShell on Ubuntu passed; Windows host execution absent |
 | First-token latency / measured tokens per second / GPU / 4 GB compatibility | NOT TESTED | No supporting measurements |
+
+## First exact-release genuine response
+
+The first release test input was byte-exact against the requested synthetic English fixture. Native analysis completed in 47,791 ms (204 raw characters logged); native drafting completed in 37,249 ms (72 characters logged). Akma-owned UI capture independently contains the actual 72-character draft. Miguel confirms intent preserved for the requested Reschedule / Professional selection, without invented availability. Reschedule is also visible in the retained UI; tone was not independently visible in that capture. The fidelity PASS is the user's observation, not an automated semantic assertion. Exact text remains private.
+
+At 20:46:50 UTC, the release process reported PSS 2,331,929 kB, RSS 2,448,432 kB and SWAP PSS 156 kB; available system RAM 2,416,648 kB; /data/user/0 free 3,555,036 KiB; thermal status 0. All offline settings were explicitly reverified. These snapshots are not peak measurements or leak guarantees. The second consecutive attempt and final slot release are recorded below.
+
+## Final active attempt and Pova slot release
+
+Miguel directed Quaternary to finish the active attempt, stop additional long scenarios, and switch the final demo gate to Rhence's phone after Primary/Danielle integration. The latest completed attempt was the requested synthetic Filipino interview scenario with Reschedule / Professional. Actual UI input measured 80 characters against the requested fixture's 82; it was not byte-exact and did not match after punctuation normalization. The actual input and output are retained privately; no exact-fixture fidelity claim is made for this release attempt.
+
+Native analysis completed in 40,746 ms (233 raw characters logged); native drafting completed in 43,509 ms (99 characters logged). The actual 99-character editable reply is independently retained from Akma UI. Miguel reports wrong language or intent: fidelity FAIL. The precise subtype is not inferred. Native completion PASS does not make the product response acceptable. End-to-end elapsed time and first-token latency were not measured; the two native operation times exclude the user's selection/confirmation interval.
+
+At 20:51:17 UTC, PSS was 2,306,437 kB, RSS 2,421,704 kB, SWAP PSS 157 kB; thermal status 0; process running. At 20:48:57 UTC, available system RAM was 2,460,492 kB and free storage 3,554,176 KiB; explicit airplane/Wi-Fi/mobile-data gate PASS. The final retained process log contained zero matches for OutOfMemoryError, UnsatisfiedLinkError, JNI DETECTED ERROR, Fatal signal, SIGSEGV or SIGABRT since the release-generation marker. Buffer coverage is incomplete by design; absence is not proof of complete error coverage. No model-operation timeout or serious thermal event was observed in this completed attempt. The earlier 90-second Activity observer timeout remains a separate collection limitation.
+
+The pending Taglish request was withdrawn before any observed start. No further restart, cancellation, matrix, install, app-data deletion or settings changes were performed. Owned host collectors and ADB listeners were stopped, and the exclusive Pova slot was released. The application and verified model were left intact. Rhence's frozen integration APK, exact device identity and exclusive testing slot remain pending; no Rhence device PASS is claimed. Do not reuse the Pova APK's hash or results for a later merged artifact.
+
+Recommended handoff: retain the already-integrated PR #22 bundled integrity seam; let Primary reconcile runtime changes and Danielle's UI through the agreed integration branch; freeze and verify one resulting APK; validate its exact bytes on Rhence only after an exclusive slot is confirmed. Miguel/MERD own review and merge. Quaternary requests no reviewers and performs no merge.
