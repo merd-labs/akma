@@ -18,10 +18,10 @@ The supplied ZIP was already extracted and committed, then deleted, as confirmed
 
 ## Team
 
-- Miguel Harvey Velasco — lead engineering, architecture, AI runtime and integration
-- Elijah Jairus Castalla — Android overlay/integration and QA
-- Rhence Bryan Tavera — requirements, coordination, QA and pitch
-- Kurt Danielle Setenta (Danielle) — product design, Compose UI/Android Views and assets
+- Miguel Harvey Velasco — Lead Engineering, Architecture, AI Runtime and Integration
+- Elijah Jairus Castalla — Native Android Local AI Engineer
+- Rhence Bryan Tavera — Product Owner, Functional QA and Demo Lead.
+- Kurt Danielle Setenta — UI/UX and Android Frontend Lead
 
 ## Schedule (PHT)
 
