@@ -35,14 +35,17 @@ PR #26 head `ae7f0946c6a6be26fd159650900da6769eb81008` pins the Qwen filename/re
 | Gate | Result | Evidence or gap |
 | --- | --- | --- |
 | Downloaded complete model integrity | PASS | 1,597,931,520 bytes; header LITERTLM; SHA matches owner pin |
-| Exact combined APK embedded model integrity | NOT TESTED | Integration owner has not supplied a frozen model-enabled APK |
-| Exact combined APK install/launch on API 30 | NOT TESTED | Current observed APK is the baseline above |
-| Physical model provisioning and native loading | NOT TESTED | Requires the combined artifact |
-| Cold/warm initialization and process restart | NOT TESTED | No genuine model initialized in this slot |
+| Exact combined APK embedded model integrity | PASS | Source 53b087c; model exact size/header/SHA; uncompressed; ARM64 JNI ELF |
+| Exact combined APK install/launch on API 30 | PASS | Frozen 53b087c APK independently hashed on device after installation; Activity cold launch 2,965 ms |
+| Existing private model verification and native loading | PASS | Private model SHA matches the trusted pin; real CPU native initialization completed |
+| First bundled import on phone | NOT TESTED | Model was already provisioned by the earlier installation |
+| Cold/warm initialization | FAIL / PASS | Cold native initialization 62,915 ms exceeds 60,000 ms coordinator limit; user reached Ready after Retry; warm native initialization 1,469 ms |
+| Ready after process restart | NOT TESTED | Cold launch was tested; a second full restart gate remains pending |
 | Three English/Filipino/Taglish offline attempts | NOT TESTED | No model generation attempted |
 | Actual action/tone/output fidelity | NOT TESTED | No model output observed |
 | Import interruption and corruption recovery on phone | NOT TESTED | Unit fixtures do not establish physical behavior |
-| Inference PSS, latency, OOM/JNI/native/thermal behavior | NOT TESTED | Preflight snapshots cannot establish these results |
+| Initialization memory and thermal snapshots | PASS | Post-cold-init PSS 2,207,090 kB; RSS 2,293,032 kB; thermal status 0; these are sampled values, not peaks |
+| Generation latency and failures | NOT TESTED | No completed generation has been observed yet |
 | Same frozen APK on Camon 30 | NOT TESTED | PR #26's earlier CL6/API36 generation used a different APK; mobile-data disablement was not recorded |
 | Native Windows tooling execution | NOT TESTED | PowerShell-on-Ubuntu tests are separate |
 
@@ -68,3 +71,47 @@ Lint: 0 errors; 16 existing warnings; 0 provisioning findings
 The eight new bundled-store fixture tests cover original-path reuse, corruption repair, failed replacement preserving a valid model, unchanged-identity reuse, restart verification, same-size corruption with changed ctime, missing-stat fallback, explicit invalidation and mutation during verification. Fixtures never represent inference success. Thirteen JDK17 release-verifier cases passed; Bash syntax/help and PowerShell help passed on Ubuntu. Both release-verifier launchers were exercised on local fixture paths without printing them.
 
 Both push and PR hosted Android/documentation checks PASS on `e34a6d3`: [push CI](https://github.com/merd-labs/akma/actions/runs/37974268558), [PR CI](https://github.com/merd-labs/akma/actions/runs/37974275057). The accepted combination is being built by Primary in [PR #27](https://github.com/merd-labs/akma/pull/27), which incorporates this provisioning seam. These CI runs have no committed model weights and are not physical-inference evidence.
+
+## Frozen initial integration artifact
+
+Primary supplied a stable debug APK built from `53b087c535f441815f600fd9ced816b4cdc54a39`. Independent JDK17 streaming verification returned:
+
+```text
+PASS: APK model size, header, SHA-256 and ARM64 ELF packaging
+apk_bytes=1676683590
+apk_sha256=d8f9b23a8701773a37438e2fab03d0bd5eb9ef42c74c6198370d4b121e973824
+```
+
+Independent signature verification returned exit 0 and the same signer as the observed baseline. AAPT showed application ID `ph.merd.akma`, label Akma, minSdk 30 and targetSdk 36. This proves artifact packaging/signing. Installation and initialization observations are recorded separately below; generation is not established by these checks. Primary's earlier output path was relocated into stable release staging. A separate owner build failed with host ENOSPC; that failure is not the stable artifact's result. Quaternary's own incomplete staging copy was rejected, removed, and never installed. Only owned duplicate temporary files were reclaimed.
+
+The actual cached LiteRT Android 0.18.0 AAR measured 20,905,807 bytes with SHA-256 `706cbb8a87739b2818111bf3a19a78b8f7781586d10f80adf3415581fab7595f`. Its manifest declares min API 24; it packages arm64-v8a and x86_64 JNI. The ARM64 JNI header has ELF class 2 and machine 183. Declared library dependencies include Android, libc, libm, libdl, log, zlib and GLES/EGL system libraries. These dependency names do not prove GPU acceleration. API 30 native initialization subsequently completed on the exact frozen artifact, as recorded below.
+
+## Pre-installation ownership conflict
+
+At 18:59:33 UTC (02:59:33 PHT), before Quaternary issued any install or inference command, the installed APK measured 1,676,601,554 bytes and the app-private pinned model measured 1,597,931,520 bytes. The app process was running and /data free storage was 3,486,264 KiB. Both differ materially from the earlier baseline; the installed APK size also differs from the frozen candidate. Quaternary paused device commands and requested operator clarification rather than interrupting a possible active model test. At that checkpoint no installation, native initialization, generated output or throughput result was claimed. The conservative fresh-install/copy space check failed before installation; this is a preflight policy result, not an observed Android installer failure.
+
+## Operator attribution and exact installation
+
+Miguel clarified that the unexpected intervening installation was his and other operators were stopped. Its independently measured APK SHA was `a51890ad883dfa59d6f14a3c480a9467008d1d38d790fdd03bd5a0056b8b31b8`, matching a separate existing host artifact. This Quaternary session had not installed that APK. Shared Git author names and GitHub login do not prove which coding agent or operator installed it. The commit/command trail establishes this session's PR #22 changes; it does not establish authorship of another owner's APK.
+
+Quaternary subsequently installed Primary's exact frozen `d8f9b23a...` artifact. Installation attempts are preserved as distinct results:
+
+| Attempt | Result | Wall-clock observation |
+| --- | --- | --- |
+| Non-streamed replacement | FAIL | exit 255 after 108,529 ms; decisive error details were not retained |
+| Streamed replacement | FAIL | `INSTALL_FAILED_INSUFFICIENT_STORAGE`; 124,121 ms |
+| Streamed replacement after generated-cache removal | PASS | exit 0 / Success; 220,869 ms; completed 19:20:09 UTC |
+
+Before the successful attempt, Akma alone was force-stopped and its one identified, reconstructible 1,553,141,640-byte XNNPACK weights cache was removed. The pinned model, preferences and user files were preserved. No uninstall, app-data clear, unrelated-app termination or broad cache deletion occurred. Rebuilding this cache affects cold initialization and storage requirements. Free storage sampled before the final attempt was 3,362,676 KiB; this is not a claim that cleanup increased storage by a particular amount.
+
+The installed APK SHA was read back from the device and exactly matched `d8f9b23a8701773a37438e2fab03d0bd5eb9ef42c74c6198370d4b121e973824`. The app-private model SHA was independently verified against the owner pin. Successful installation does not establish first-time bundled import because that model existed before this session's installation.
+
+## Genuine native initialization
+
+Airplane mode 1, Wi-Fi setting 0 / service disabled and default-subscription mobile data 0 were reverified before launch and before the generation request. The frozen APK's cold Activity launch returned Status ok / LaunchState COLD: TotalTime 2,965 ms, WaitTime 2,969 ms; host command wall time 3,025 ms. Activity launch time is separate from model readiness. Available system memory before launch was 3,258,132 kB; thermal status 0.
+
+The real CPU native initialization log reported 62,915 ms. At 19:24:51 UTC, process TOTAL PSS was 2,207,090 kB, TOTAL RSS 2,293,032 kB and TOTAL SWAP PSS 181 kB; thermal status 0. The coordinator in this frozen source uses a 60,000 ms operation timeout. Miguel confirmed Ready after Retry; the warm native initialization log reported 1,469 ms. At 19:30:39 UTC, a later ready-process snapshot measured PSS 465,041 kB, RSS 551,854 kB and SWAP PSS 109 kB, thermal status 0. These are different sampled lifecycle states, not a measured peak or memory leak conclusion.
+
+The cold startup usability gate fails: native work alone exceeds the configured initialization deadline. The runtime/domain owners were notified in [PR #27](https://github.com/merd-labs/akma/pull/27#issuecomment-6087828950) to add a separate bounded initialization deadline while retaining the generation deadline. No coordinator/runtime source is changed by this evidence branch. A replacement APK incorporating that fix and PR #28 needs a new hash and its own physical gate.
+
+No first-token latency, token throughput, GPU acceleration, completed response, repeated-generation stability or 4 GB compatibility is established by native initialization. Actual synthetic prompt/output contents remain private.
