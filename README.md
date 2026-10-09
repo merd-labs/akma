@@ -1,6 +1,6 @@
 # Akma — MERD / AppBuildersPH Hackathon 2026
 
-**Status:** Features currently marked as **deferred** or **not-tested**. No Android APK has been built here; no real local model inference has been verified.
+**Status:** Features currently marked as **deferred** or **not-tested**. The Android bootstrap code is located on the `chore/akma-bootstrap` branch. The `main` branch is currently for documentation only. No real local model inference has been verified yet.
 
 > The right words, for the right context.
 
@@ -18,12 +18,12 @@ Android-first, privacy-conscious, user-invoked AI reply assistant. A user manual
 
 *(Note: Free capacity and current available RAM must be measured with ADB. Do not claim 4GB compatibility.)*
 
-## 🔒 Security, Privacy & On-Device Boundary
+## 🔒 Security, Privacy & On-Device Boundary (Pending Verification)
 
-- **100% Offline Inference:** Model runs entirely on the device (airplane mode supported).
-- **No Network Requests:** No cloud APIs, no backend, no telemetry.
+- **Targeted 100% Offline Inference:** Model is intended to run entirely on the device (airplane mode supported, subject to verification).
+- **Targeted No Network Requests:** Aiming for no cloud APIs, no backend, no telemetry.
 - **Manual Control Only:** No AccessibilityService, no notification listeners, no automatic sending, no silent clipboard capture. The user manually copies and pastes text.
-- **Data Boundary:** App data cannot be accessed from outside the app.
+- **Data Boundary:** App data is intended to be isolated from outside the app (to be verified with integrated model).
 
 ## 🛠️ Setup (Ubuntu / Win11)
 

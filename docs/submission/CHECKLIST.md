@@ -9,20 +9,22 @@
 - [ ] Code compiles on MinSDK30 (Android 11) using `./gradlew assembleDebug`.
 - [ ] No fake AI or mocked responses are claimed as real AI.
 - [ ] No secrets, `.env`, keystores, or personal chat messages in the repository.
-- [ ] All team members credited.
+- [ ] All team members registered and credited.
+- [ ] Public GitHub repository created.
 
 ## On-Device Validation
 - [ ] APK successfully installed and launched on a physical test device (Pova 2).
-- [ ] Airplane mode enabled during inference.
+- [ ] Airplane mode enabled during inference (if offline capability verified).
 - [ ] Model weights successfully loaded from device storage.
-- [ ] LLM inference executes completely offline.
+- [ ] LLM inference executes successfully.
 
 ## Media & Materials
-- [ ] 60-second screen record recorded (using synthetic data).
-- [ ] X/LinkedIn posts drafted (but NOT published).
+- [ ] 1-minute working-product video recorded (using synthetic data).
+- [ ] Public social post drafted (but NOT published).
+- [ ] Tags/hashtags verified for Cerebral Valley.
 - [ ] Public repository visibility confirmed (if approved by Miguel).
 
 ## Final Handoff
 - [ ] PR created and reviewed by Miguel.
 - [ ] Final explicit human approval granted.
-- [ ] Submission submitted to Devpost/Hackathon platform before 10:00 AM PHT cutoff.
+- [ ] Submission submitted to the official **Cerebral Valley** submission destination before 10:00 AM PHT cutoff.

@@ -1,14 +1,14 @@
 # AI Disclosure Record — Complete Before Submission
 
-**CURRENT STATUS: NO AI TOOLS HAVE BEEN USED TO GENERATE SUBMITTED APP CODE YET. NO LOCAL INFERENCE MODEL IS VERIFIED.**
+**CURRENT STATUS: NO LOCAL INFERENCE MODEL IS VERIFIED.**
 
 This template is intentionally NOT a claim that a tool/model was used. It must be updated with verifiable facts before the final submission.
 
 | Item | Actual name/version/model | Human operator/usage | Status |
 |---|---|---|---|
-| Codex CLI | TBD | Miguel / Elijah | To confirm |
-| Claude Code | TBD | Miguel / Danielle | To confirm |
-| Google AI agent(s) | Gemini 3.1 Pro (High) / Antigravity | Miguel (Docs only) | **OBSERVED** (Docs) |
+| Codex CLI | TBD | Miguel / Elijah (Generated Android bootstrap) | **OBSERVED** (Bootstrap) |
+| Claude Code | TBD | Miguel / Danielle (Contributed to workflow/docs) | **OBSERVED** (Workflow) |
+| Google AI agent(s) | Gemini 3.1 Pro (High) / Antigravity | Miguel (Contributed to workflow/docs) | **OBSERVED** (Docs) |
 | Spec Kit | TBD | Specification/task planning | To confirm |
 | Matt Pocock Skills | TBD | Agent workflow | To confirm |
 | LiteRT-LM or llama.cpp | TBD | On-device inference | **NOT VERIFIED** |
