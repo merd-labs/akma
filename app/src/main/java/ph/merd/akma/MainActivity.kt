@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ph.merd.akma.domain.ReplyTone
 import ph.merd.akma.domain.ReplyValidation
 import ph.merd.akma.overlay.OverlayService
+import ph.merd.akma.overlay.clearOverlayReplySession
 import ph.merd.akma.ui.AkmaScreen
 import ph.merd.akma.ui.CopyUi
 import ph.merd.akma.ui.JourneyCallbacks
@@ -86,7 +87,10 @@ class MainActivity : ComponentActivity() {
             var setupDone by remember { mutableStateOf(readFlag(KEY_SETUP_DONE)) }
             var screen by remember { mutableStateOf(startScreen(onboarded, setupDone)) }
             LaunchedEffect(screen) { applySystemBars(screen) }
-            screen.back(setupDone)?.let { previous -> BackHandler { screen = previous } }
+            screen.back(setupDone)?.let { previous -> BackHandler {
+                clearOverlayReplySession(session.replies)
+                screen = previous
+            } }
             val bubbleOn = overlayGranted && overlay.open
             val notice = overlay.error ?: if (!notificationGranted) stringResource(R.string.akma_notifications_off) else null
             AkmaTheme {

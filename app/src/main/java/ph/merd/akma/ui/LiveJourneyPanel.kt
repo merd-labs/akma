@@ -9,9 +9,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import ph.merd.akma.R
 import ph.merd.akma.domain.ReplyCoordinator
@@ -38,6 +43,9 @@ fun LiveJourneyPanel(
     imePadding: Boolean = true,
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val inputFocus = remember { FocusRequester() }
     val state by replies.state.collectAsState()
     var tone by remember { mutableStateOf(ReplyTone.PROFESSIONAL) }
     var lastActionId by remember { mutableStateOf<String?>(null) }
@@ -52,50 +60,59 @@ fun LiveJourneyPanel(
         tooLong = stringResource(R.string.akma_paste_too_long),
         blocked = stringResource(R.string.akma_paste_blocked),
     )
+    val pasteAction by rememberUpdatedState<() -> Unit>({
+        if (!view.hasWindowFocus()) {
+            localNotice = pasteNotices.blocked
+        } else {
+            try {
+                inputFocus.requestFocus()
+                keyboard?.show()
+                localNotice = pasteFromClipboard(context, replies, pasteNotices)
+            } catch (_: RuntimeException) {
+                localNotice = pasteNotices.blocked
+            }
+        }
+    })
+    val bridge = remember(context, replies, onClose) {
+        JourneyCoordinatorAdapter(
+            replies,
+            paste = { pasteAction() },
+            copy = { displayedCopy -> copyDraft(context, displayedCopy) },
+            close = onClose,
+            copyFailed = { copyError = true },
+        )
+    }
+    val bound = bridge.callbacks(
+        displayed, tone, toneChanged = { tone = it }, actionSelected = { lastActionId = it },
+        selectedActionId = ui.choice?.selectedActionId,
+    )
+    val callbacks = bound.copy(
+        onMessageChange = { localNotice = null; bound.onMessageChange(it) },
+        onDraftChange = { copyError = false; bound.onDraftChange(it) },
+        onStartOver = { localNotice = null; copyError = false; bound.onStartOver() },
+    )
+    val blockedTap = {
+        localNotice = "Tap blocked because another window covers this control. Move it away and try again."
+    }
     JourneyPanel(
         ui = ui,
         modifier = modifier,
         imePadding = imePadding,
-        callbacks = JourneyCallbacks(
-            onClose = onClose,
-            onMessageChange = { localNotice = null; replies.setMessage(it) },
-            onPaste = { localNotice = pasteFromClipboard(context, replies, pasteNotices) },
-            onAnalyze = { if (replies.state.value.canStartProcessing) replies.analyze() },
-            onSelectAction = { id ->
-                if (replies.state.value.canChooseDraft) {
-                    lastActionId = id
-                    replies.selectDraft(id, tone)
-                }
-            },
-            onSelectTone = { if (replies.state.value.canChooseDraft) tone = it },
-            onRefine = { kind -> lastActionId?.let { replies.selectDraft(it, tone, kind.instruction) } },
-            onCancelConfirmation = {
-                displayed.pendingConfirmation?.let { replies.cancelDisplayedDraft(it.id) }
-                lastActionId = null
-            },
-            onCancelProcessing = { replies.cancelDisplayedProcessing(displayed) },
-            onStartOver = {
-                localNotice = null
-                lastActionId = null
-                replies.setMessage("")
-            },
-            onDraftChange = { copyError = false; replies.editDraft(it) },
-            onRetry = { replies.retryLocalModel() },
-            onDismissError = replies::recover,
-        ),
+        inputModifier = Modifier.focusRequester(inputFocus),
+        callbacks = callbacks,
         copyButton = { copy ->
             val copied = copy == CopyUi.Copied
-            ProtectedAkmaButton(
-                factory = { copyButton(it) },
-                text = stringResource(if (copied) R.string.akma_copied else R.string.akma_copy_reply),
-                enabled = copy == CopyUi.Ready || copied,
-                onClick = {
-                    copyError = !copyDraft(context, replies.state.value)
-                    if (!copyError) replies.copied()
-                },
-                variant = if (copied) ButtonVariant.Success else ButtonVariant.Primary,
-                icon = if (copied) R.drawable.ic_akma_check else R.drawable.ic_akma_copy,
-            )
+            // Replacing the displayed draft replaces its control, invalidating an old touch gesture.
+            key(displayed) {
+                ProtectedAkmaButton(
+                    factory = { copyButton(it, blockedTap) },
+                    text = stringResource(if (copied) R.string.akma_copied else R.string.akma_copy_reply),
+                    enabled = copy == CopyUi.Ready || copied,
+                    onClick = callbacks.onCopy,
+                    variant = if (copied) ButtonVariant.Success else ButtonVariant.Primary,
+                    icon = if (copied) R.drawable.ic_akma_check else R.drawable.ic_akma_copy,
+                )
+            }
             if (copyError) SecondaryText(stringResource(R.string.akma_copy_failed))
             else if (copied) SecondaryText(stringResource(R.string.akma_copied_hint))
         },
@@ -103,10 +120,10 @@ fun LiveJourneyPanel(
         // Replacing a token replaces its control, cancelling any in-flight tap.
         key(confirmation.confirmationId) {
             ProtectedAkmaButton(
-                factory = { confirmationButton(it) },
+                factory = { confirmationButton(it, blockedTap) },
                 text = stringResource(R.string.akma_write_reply),
                 enabled = confirmation.valid,
-                onClick = { replies.confirmDisplayedDraft(confirmation.confirmationId) },
+                onClick = { bridge.confirm(confirmation.confirmationId) },
             )
         }
     }
