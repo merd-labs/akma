@@ -9,7 +9,7 @@ data class AnalyzeRequest(
 data class SuggestedAction(val id: String, val label: String)
 
 /** Classification provenance, supplied by the adapter, not extracted from model-generated JSON. */
-enum class AnalysisSource { UNSPECIFIED, LOCAL_MODEL, DETERMINISTIC }
+enum class AnalysisSource { UNSPECIFIED, LOCAL_MODEL, HYBRID, DETERMINISTIC }
 
 data class AnalysisResult(
     val category: String,

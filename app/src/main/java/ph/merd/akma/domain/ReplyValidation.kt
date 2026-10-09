@@ -35,6 +35,7 @@ object ReplyValidation {
         val end = summary.offsetByCodePoints(0, minOf(summary.codePointCount(0, summary.length), MAX_SUMMARY_CODE_POINTS))
         val prefix = when (analysis.source) {
             AnalysisSource.LOCAL_MODEL -> "Model summary (untrusted); actions from local catalog: "
+            AnalysisSource.HYBRID -> "Model purpose (untrusted); category from keywords; actions from local catalog: "
             AnalysisSource.DETERMINISTIC -> "Deterministic analysis; actions from local catalog: "
             AnalysisSource.UNSPECIFIED -> error("Analysis source is unsupported.")
         }

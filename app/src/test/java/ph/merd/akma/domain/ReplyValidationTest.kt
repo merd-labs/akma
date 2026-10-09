@@ -36,6 +36,15 @@ class ReplyValidationTest {
     }
 
     @Test
+    fun hybridPurposeDisclosesKeywordCategoryAndCatalogActions() {
+        val result = ReplyValidation.normalize(
+            analysis(listOf(action)).copy(source = AnalysisSource.HYBRID, summary = "Interview invitation")
+        ).getOrThrow()
+        assertTrue(result.summary.startsWith("Model purpose (untrusted); category from keywords; actions from local catalog: "))
+        assertTrue(result.actions.single() == ActionCatalog.action("reschedule"))
+    }
+
+    @Test
     fun rejectsFourReviewedActions() {
         val actions = ActionCatalog.actionsFor("interview_invitation")
         assertTrue(ReplyValidation.validate(analysis(actions), actions.map { it.id }.toSet()).isFailure)
