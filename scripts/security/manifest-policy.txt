@@ -1,0 +1,21 @@
+# Akma merged-manifest policy, read by scripts/security/ManifestGuard.java.
+# Every line here widens what the shipped APK may do. Change it only in a reviewed PR that explains why.
+# Anything not listed is a violation. Format: one directive per line, '#' starts a comment.
+
+# --- Permissions required by the user-started overlay workflow (docs/ARCHITECTURE.md, AndroidManifest.xml) ---
+permission android.permission.SYSTEM_ALERT_WINDOW
+permission android.permission.FOREGROUND_SERVICE
+permission android.permission.FOREGROUND_SERVICE_SPECIAL_USE
+permission android.permission.POST_NOTIFICATIONS
+
+# AndroidX adds "<applicationId>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" (signature level) via androidx.core.
+permission-suffix .DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+
+# --- Components that may be exported ---
+# Launcher activity.
+exported ph.merd.akma.MainActivity
+# AndroidX profile installer; only reachable by the shell/DUMP holder.
+exported androidx.profileinstaller.ProfileInstallReceiver requires=android.permission.DUMP
+
+# Deliberately NOT approved (guard fails if present): INTERNET, ACCESS_NETWORK_STATE, accessibility /
+# notification-listener / input-method services, exported services or providers, cleartext traffic.
