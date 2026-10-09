@@ -19,7 +19,7 @@ class ReplyCoordinatorTest {
         var analyses = 0
         var drafts = 0
         var analysisDelay = 0L
-        var analysisResult = Result.success(AnalysisResult("invitation", "Synthetic summary", true, listOf(SuggestedAction("reschedule", "Request reschedule"))))
+        var analysisResult = Result.success(AnalysisResult("invitation", "Synthetic summary", true, listOf(SuggestedAction("reschedule", "Request reschedule")), AnalysisSource.DETERMINISTIC))
         var draftResult = Result.success("Synthetic test draft")
         override suspend fun initialize() = Result.success(Unit)
         override suspend fun analyze(request: AnalyzeRequest): Result<AnalysisResult> {
@@ -61,6 +61,7 @@ class ReplyCoordinatorTest {
         advanceUntilIdle()
         assertEquals(ReplyPhase.ChoosingAction, replies.state.value.phase)
         replies.draft("reschedule", ReplyTone.PROFESSIONAL)
+        replies.state.value.pendingConfirmation?.let { replies.confirmDraft(it.id) }
         advanceUntilIdle()
         assertEquals(ReplyPhase.Editing, replies.state.value.phase)
         replies.editDraft("Edited synthetic test draft")
@@ -85,7 +86,9 @@ class ReplyCoordinatorTest {
         advanceUntilIdle()
         assertEquals(1, engine.analyses)
         replies.draft("reschedule", ReplyTone.PROFESSIONAL)
+        replies.state.value.pendingConfirmation?.let { replies.confirmDraft(it.id) }
         replies.draft("reschedule", ReplyTone.PROFESSIONAL)
+        replies.state.value.pendingConfirmation?.let { replies.confirmDraft(it.id) }
         advanceUntilIdle()
         assertEquals(1, engine.drafts)
     }
@@ -149,7 +152,7 @@ class ReplyCoordinatorTest {
     @Test
     fun unapprovedActionAndMalformedAnalysisFailVisibly() = runTest {
         val engine = FixtureEngine().apply {
-            analysisResult = Result.success(AnalysisResult("invitation", "Synthetic summary", true, listOf(SuggestedAction("refund", "Promise refund"))))
+            analysisResult = Result.success(AnalysisResult("invitation", "Synthetic summary", true, listOf(SuggestedAction("refund", "Promise refund")), AnalysisSource.DETERMINISTIC))
         }
         val replies = ReplyCoordinator(engine, this, StandardTestDispatcher(testScheduler))
         replies.initialize()
@@ -180,6 +183,7 @@ class ReplyCoordinatorTest {
         assertEquals(0, engine.drafts)
         replies.recover()
         replies.draft("reschedule", ReplyTone.PROFESSIONAL)
+        replies.state.value.pendingConfirmation?.let { replies.confirmDraft(it.id) }
         advanceUntilIdle()
         assertEquals(ReplyPhase.Error, replies.state.value.phase)
         assertFalse(replies.state.value.canCopy)
