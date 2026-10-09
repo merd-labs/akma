@@ -1,0 +1,9 @@
+# Prompt 00 — Miguel / Elijah: create first compilable Android project
+
+You are the assigned Kotlin/Android bootstrap engineer for MERD's Akma. Work ONLY on a dedicated short-lived branch, not main. Read README, AGENTS.md, docs/START_HERE.md, docs/PRD.md, docs/CONTRACT.md, docs/DECISIONS.md, docs/DEVICE_MATRIX.md. Preserve accepted scope. Do not invent test results.
+
+**Objective:** Generate the smallest valid Android Studio Gradle project that builds on Ubuntu 24.04.5 and Windows 11 Pro 25H2 with checked-in Gradle wrapper; `ph.merd.akma` package; minSdk that actually supports Android 11 and the eventual selected inference library; compile/target SDK pinned to installed compatible tools; Kotlin, Compose main Activity and a placeholder model status UI. Provide no fake AI generation. Do not add cloud backends, AccessibilityService, system keyboard, notification listeners or unnecessary dependencies.
+
+**Priority:** Inspect installed Android Studio/SDK/JDK/AGP/Gradle/Kotlin compatibility *before* selecting pinned versions; verify official vendor docs. Generate Gradle wrapper scripts, JAR and properties using trusted Gradle tooling, do not manually invent binary wrapper. Verify both `./gradlew :app:assembleDebug :app:testDebugUnitTest` on Linux and document Windows equivalent. Ensure commit includes correct `gradle-wrapper.jar` and SDK config remains local. Provide model and overlay extension points per docs/CONTRACT.md, but let their owners implement components separately. Do not change shared contract without Miguel's review.
+
+**Deliverables:** compiling app with home/onboarding placeholder, no extra permissions except when justified, initialized tests, docs/SETUP_* updates with actual versions, CI result. Report files changed, command outputs, failures and next tasks. If build is blocked, give exact missing dependency and lowest-risk corrective action.

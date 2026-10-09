@@ -1,0 +1,40 @@
+# Android and Gradle
+.gradle/
+**/build/
+/local.properties
+**/local.properties
+.cxx/
+.externalNativeBuild/
+.idea/
+*.iml
+*.apk
+*.aab
+*.keystore
+*.jks
+*.hprof
+captures/
+# Native model artifacts
+*.gguf
+*.litertlm
+*.tflite
+*.task
+*.safetensors
+*.bin
+models/
+model-cache/
+# Credentials and local agent state
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+**/auth.json
+.codex/
+.claude/settings.local.json
+# Build/OS/editor
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+.pytest_cache/
+__pycache__/

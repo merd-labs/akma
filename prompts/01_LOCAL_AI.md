@@ -1,0 +1,9 @@
+# Prompt 01 — Miguel / dedicated Codex agent: on-device model feasibility
+
+Own `ai/` implementation on `feat/local-inference`; NO overlay/UI/Gradle edits without permission. Read AGENTS, PRD, CONTRACT, MODEL_VALIDATION, DEVICE_MATRIX. Primary hardware: Tecno Pova 2 LE7 Android 11, Helio G85, 6GB actual; do NOT claim 4GB support without testing. Secondary Infinix Zero 5G and Camon 30.
+
+**First:** Audit model/OS/ABI free memory/storage via ADB. Compare LiteRT-LM + correctly packaged Gemma 3 1B against portable Android ARM64 llama.cpp + official Qwen2.5-0.5B-Instruct-GGUF Q4_K_M. Validate the exact LiteRT-LM JDK/AGP compatibility. **Upstream llama.cpp Android Studio example currently requires minSdk=33 and cannot be copied as-is to the API 30 Pova 2; investigate the portable NDK Android route and test device execution before JNI integration.** Model must execute *on Android phone*, not remote laptop or cloud. Check concrete supported library version, model format/backend, licensing and provenance; don't assume GPU. Integrate a real smoke test in the Activity or official sample before UI hook-up. Prove airplane mode result and measure load time and inference time, 3 runs, actual model hash/version. Never embed downloaded multi-GB model in Git.
+
+Implement agreed LocalReplyEngine interface only after feasibility. Use non-UI dispatcher, at most one engine, bounded tokens, serialized calls, input validation and recoverable errors. Preserve user-selected action; a reschedule request must never confirm availability. If model classification fails, propose transparent rule-based action buttons; still generate draft with real local model. No fake responses or hidden cloud calls.
+
+**Handoff:** evidence/device/version/backend/metrics, files, smoke steps, tests actually run, remaining blockers. Do not merge until human review.

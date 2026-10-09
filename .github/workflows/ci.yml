@@ -1,0 +1,29 @@
+name: Android CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Project status and basic checks
+        shell: bash
+        run: |
+          if [[ ! -f gradlew ]]; then
+            echo '::notice::Documentation bootstrap only: Android/Gradle project has not been generated yet.'
+            exit 0
+          fi
+          if [[ ! -f gradle/wrapper/gradle-wrapper.jar || ! -f gradle/wrapper/gradle-wrapper.properties ]]; then
+            echo '::error::Gradle wrapper is incomplete.'
+            exit 1
+          fi
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest

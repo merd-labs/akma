@@ -1,0 +1,1 @@
+Unedited documentation from the user-uploaded `ContextAI_Hackathon_Documents.zip` dated Oct 9 2026. Included as source material. The 24-hour execution clock, missing-device information and untested model/runtime choices are superseded by current top-level `docs/` decisions. Do not treat draft benchmarks or architecture candidates as observed facts.
