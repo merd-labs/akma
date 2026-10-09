@@ -3,7 +3,7 @@
 | ID | Decision | Confidence |
 |---|---|---|
 | ADR-001 | Native Android Kotlin over cross-platform for Android overlay and simplicity | Accepted |
-| ADR-002 | MainActivity Jetpack Compose, overlay Android Views | Accepted |
+| ADR-002 | MainActivity Jetpack Compose, overlay Android Views (update proposed in PR #31: the overlay panel content is the shared Compose journey hosted in the Views overlay window; bubble and window management stay Views) | Accepted; update proposed |
 | ADR-003 | User-triggered overlay, explicit paste, manual copy; no AccessibilityService or automatic send | Accepted |
 | ADR-004 | No backend, login, cloud AI or user content storage for hackathon | Accepted |
 | ADR-005 | Min Android support: API 30 primary; exact `minSdk` subject to inference dependency | Provisional |

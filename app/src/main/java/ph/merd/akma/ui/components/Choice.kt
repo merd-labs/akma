@@ -139,6 +139,7 @@ fun ConfirmationCard(
     message: String,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    refineLabel: String? = null,
     confirmButton: @Composable () -> Unit,
 ) {
     val shape = RoundedCornerShape(AkmaRadius.lg)
@@ -153,7 +154,8 @@ fun ConfirmationCard(
     ) {
         Text(stringResource(R.string.akma_review_title), style = AkmaTheme.type.titleS, color = AkmaTheme.colors.textPrimary)
         Text(
-            stringResource(R.string.akma_review_choice, actionLabel, stringResource(CategoryPresentation.toneLabel(tone))),
+            refineLabel?.let { stringResource(R.string.akma_review_choice_refine, actionLabel, stringResource(CategoryPresentation.toneLabel(tone)), it) }
+                ?: stringResource(R.string.akma_review_choice, actionLabel, stringResource(CategoryPresentation.toneLabel(tone))),
             style = AkmaTheme.type.labelMStrong,
             color = AkmaTheme.colors.textBrandStrong,
         )
