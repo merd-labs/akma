@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runCurrent
@@ -16,6 +17,22 @@ import org.junit.Test
 /** Tests the production callback bridge with synthetic callbacks, never JNI termination or generated prose quality. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeReplyOperationTest {
+    @Test fun cancellationBeforeStartupNeverInvokesNativeGeneration() = runTest {
+        val operation = NativeReplyOperation(20)
+        var starts = 0
+        var cancellations = 0
+        val job = launch {
+            currentCoroutineContext().cancel()
+            operation.await({ callbacks -> starts++; callbacks.onComplete() }, { cancellations++ })
+        }
+        runCurrent()
+        assertEquals(0, starts)
+        assertEquals(0, cancellations)
+        assertFalse(operation.started)
+        assertTrue(job.isCancelled)
+        assertTrue(job.isCompleted)
+    }
+
     @Test fun chunksPublishOnlyAfterTerminalCompletionAndIgnoreLateCallbacks() = runTest {
         val operation = NativeReplyOperation(20)
         lateinit var callbacks: NativeReplyCallbacks
@@ -43,7 +60,7 @@ class NativeReplyOperationTest {
             try {
                 output = operation.await({ callbacks = it }, { cancellations++ })
             } finally {
-                if (operation.completed) slot.invalidate().getOrThrow() else slot.quarantine()
+                if (operation.started && !operation.completed) slot.quarantine() else slot.invalidate().getOrThrow()
             }
         }
         runCurrent(); callbacks.onText("Partial reply")

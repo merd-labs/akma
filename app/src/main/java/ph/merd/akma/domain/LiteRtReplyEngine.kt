@@ -14,6 +14,8 @@ import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.SamplerConfig
 import java.io.File
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import ph.merd.akma.provisioning.BundledModelProvisioner
 import ph.merd.akma.provisioning.BundledQwenArtifact
 import ph.merd.akma.provisioning.ModelProvisionResult
@@ -34,10 +36,12 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
             is ModelProvisionResult.Verified -> result.model.file
             is ModelProvisionResult.Failure -> throw ModelUnavailableException()
         }
+        currentCoroutineContext().ensureActive()
         val started = SystemClock.elapsedRealtime()
         val loaded = Engine(EngineConfig(modelPath = model.absolutePath, backend = Backend.CPU(), cacheDir = app.cacheDir.absolutePath))
         runtime.install(loaded)
         try {
+            currentCoroutineContext().ensureActive()
             loaded.initialize()
             Log.i(TAG, "model_initialized_ms=${SystemClock.elapsedRealtime() - started}")
         } catch (failure: Throwable) {
@@ -115,6 +119,7 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
             maxOutputToken = maxTokens,
             chatTemplate = QWEN_CHAT_TEMPLATE,
         )
+        currentCoroutineContext().ensureActive()
         val conversation = active.createConversation(config)
         val handle = NativeHandleSlot<Conversation>().also { it.install(conversation) }
         val operation = NativeReplyOperation(ModelOutputSafety.MAX_RAW_CHARS, onCancellationFailure = { runtime.quarantine() })
@@ -137,7 +142,7 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
             primaryFailure = true
             throw failure
         } finally {
-            if (!operation.completed) {
+            if (operation.started && !operation.completed) {
                 // Startup or cancellation failed before a terminal callback. Closing could race native work.
                 handle.quarantine()
                 runtime.quarantine()
@@ -153,6 +158,7 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
     }
 
     private suspend inline fun <T> guarded(block: () -> T): Result<T> = try {
+        currentCoroutineContext().ensureActive()
         if (runtime.quarantined) throw RuntimeRestartRequiredException()
         Result.success(block())
     } catch (cancel: CancellationException) {

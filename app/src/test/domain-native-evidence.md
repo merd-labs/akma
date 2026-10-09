@@ -77,18 +77,33 @@ waiting and no-premature-close assertions remain. This follows
 [coroutine stack recovery](https://github.com/Kotlin/kotlinx.coroutines/blob/1.10.2/kotlinx-coroutines-core/jvm/src/internal/StackTraceRecovery.kt),
 which may copy an exception. No existing valid assertion was removed or suppressed.
 
+The first complete checkpoint `ae1e7c141a56fedd77f88ec70e3a0c10913d900d` passed 259 tests,
+assembly, and lint. A final focused startup-cancellation reproducer then ran:
+
+```sh
+./gradlew --no-daemon :app:testDebugUnitTest \
+  --tests 'ph.merd.akma.domain.NativeReplyOperationTest.cancellationBeforeStartupNeverInvokesNativeGeneration'
+```
+
+Observed **FAIL: 1 test, 1 failure**. The production callback bridge invoked startup once
+with an already-canceled context. Cancellation checkpoints now run before native preparation,
+initialization, and callback startup. A conversation whose generation never started is closed
+safely without quarantining the warm runtime. Completed UI waits also release coordinator-held
+flight/result references instead of retaining a prior session through the deferred result.
+No claim of native memory zeroization follows from this reference cleanup.
+
 Final complete gate:
 
 ```sh
 ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
 ```
 
-Observed **PASS**, exit 0, `BUILD SUCCESSFUL in 7m 6s`:
+Observed **PASS**, exit 0, `BUILD SUCCESSFUL in 4m 12s`:
 
-- **259 tests**, **0 failures**, **0 errors**, **0 skipped**, from 22 JUnit XML suites.
-- Domain: 129 tests; overlay: 22; UI: 19. These 170 tests are a subset of the complete run,
+- **260 tests**, **0 failures**, **0 errors**, **0 skipped**, from 22 JUnit XML suites.
+- Domain: 130 tests; overlay: 22; UI: 19. These 171 tests are a subset of the complete run,
   not an additional standalone passing run.
-- Four new regression suites add 31 tests. Existing native/output security regressions
+- Four new regression suites add 32 tests. Existing native/output security regressions
   remain; the non-cooperative timeout regression now additionally requires Error and
   non-busy state before native completion.
 - `assembleDebug`: PASS, **model-free debug APK**. No model weights are in this worktree

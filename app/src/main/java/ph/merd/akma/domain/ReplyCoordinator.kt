@@ -364,6 +364,11 @@ class ReplyCoordinator(
                 if (generation == currentGeneration) showFailure(error)
             } catch (error: Exception) {
                 if (generation == currentGeneration) showFailure(error)
+            } finally {
+                // Completed UI waits must not retain an old message/draft through the deferred result.
+                // An unfinished native worker remains owned by the scope and its mutex, not this UI reference.
+                if (flight === active) flight = null
+                if (generation == currentGeneration) operation = null
             }
         }.also { it.start() }
         active.job.start()

@@ -3,6 +3,8 @@ package ph.merd.akma.domain
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /** The terminal callback, not coroutine cancellation, establishes when a conversation may be closed. */
@@ -42,9 +44,13 @@ internal class NativeReplyOperation(
             Unit
         }
     }
+    var started: Boolean = false
+        private set
     val completed: Boolean get() = terminal.isCompleted
 
     suspend fun await(start: (NativeReplyCallbacks) -> Unit, cancel: () -> Unit): String {
+        currentCoroutineContext().ensureActive()
+        started = true
         start(callbacks)
         try {
             return terminal.await().getOrThrow()
