@@ -70,4 +70,10 @@ PR #6 remains unchanged during production work. After the production fix merges 
 
 ## CI inspection
 
-Before implementation, inspected PR #6 run `37925498078`. Android failed on its deliberate three-action regression; documentation failed on trailing whitespace in preserved historical source drafts. No workflow or historical-document repair is authorized in this branch. New-branch CI results will be recorded after publication; local gates alone do not establish hosted success.
+Before implementation, inspected PR #6 run `37925498078`. Android failed on its deliberate three-action regression; documentation failed on trailing whitespace in preserved historical source drafts.
+
+Published production source commit: `d60446210f3c33ead05a158c0136201903dac873`. [Draft PR #14](https://github.com/merd-labs/akma/pull/14) targets `chore/akma-bootstrap`; GitHub confirms Elijah (`jairuss0`) as requested reviewer. Remote head matches the pushed commit. PR #6 head remains `f79102537af7d01220b062f1d7f00ddbe9fe2271`.
+
+Observed [PR run 37933358047](https://github.com/merd-labs/akma/actions/runs/37933358047) and push run `37933256673`: documentation jobs fail. Completed documentation-job logs show `fetch-depth: 1`, a depth-one fetch, and `git show --format= --check HEAD` scanning unchanged `docs/reference/elijah/` files and exiting 2 for existing trailing whitespace. Local `git show --format= --check HEAD` and scoped `git diff --check` pass. Workflow-owner repair is tracked in [issue #15](https://github.com/merd-labs/akma/issues/15); no workflow or historical-document edit is authorized in this branch.
+
+At the last successful CI query, Android jobs are still running. Subsequent run/PR queries fail with `net/http: TLS handshake timeout`; no final hosted Android result is claimed from that observation. Later documentation-only edits preserve the tested source hashes above. Local success does not establish overall hosted CI success.
