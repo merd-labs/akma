@@ -83,7 +83,7 @@ class ReplyCoordinator(
         }
     }
 
-    /** Prepare a draft request for an explicit action selection. */
+    /** An action tap requests confirmation. It never starts inference on its own. */
     fun draft(actionId: String, tone: ReplyTone) {
         if (!initialized || state.value.phase !in setOf(ReplyPhase.ChoosingAction, ReplyPhase.Editing, ReplyPhase.Copied)) return
         val request = DraftRequest(AnalyzeRequest(state.value.message), actionId, tone)
@@ -95,17 +95,11 @@ class ReplyCoordinator(
             phase = ReplyPhase.ChoosingAction,
             draft = "",
             pendingConfirmation = DraftConfirmation(++confirmationId, action, request),
-            notice = null,
+            notice = "Confirm your selected action before drafting.",
         )
     }
 
-    /** A deliberate action tap is the confirmation in the single-tap UI. */
-    fun selectAction(actionId: String, tone: ReplyTone) {
-        draft(actionId, tone)
-        state.value.pendingConfirmation?.let { confirmDraft(it.id) }
-    }
-
-    /** Consume the ID created by the deliberate action tap. */
+    /** Invoke only from a separate human Confirm control, using the ID the control displayed. */
     fun confirmDraft(confirmationId: Long) {
         if (state.value.busy) return
         val pending = state.value.pendingConfirmation
