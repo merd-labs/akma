@@ -4,7 +4,7 @@
 |---|---|
 | Reviewer | Claude Code (Sonnet 5.5), for Miguel — independent reviewer, **docs only** |
 | Date | 2026-10-09 (event hard cutoff 2026-10-10 10:00 AM PHT) |
-| Code reviewed | `chore/akma-bootstrap` @ `02df71a` (**local only, not pushed**; `origin/main` = `60580cd`). Line numbers below refer to this commit. |
+| Code reviewed | `chore/akma-bootstrap` @ `02df71a` (draft PR #4; `origin/main` = `60580cd`). Line numbers below refer to this commit. |
 | Debug APK inspected | `app/build/outputs/apk/debug/app-debug.apk`, SHA-256 `7e1a003276f416513cc91168b5fd7739308069c8168f81df78219c6e90350f83` (matches `docs/BOOTSTRAP_VERIFICATION.md`) |
 | Also read | `origin/docs/submission-readiness` @ `48c4e0e` (draft PR #1), issue #2, Rhence master context (`AkmaAI_Phase2_GitOps_v3/reference/…`), `docs/SECURITY.md`, `docs/PRD.md`, `docs/reference/elijah/0{1,2}_*` |
 | Test device | Android **16 / API 36 x86_64 emulator** only. **Pova 2 (API 30), Infinix Zero 5G and Camon 30: NOT RUN.** |
@@ -185,6 +185,6 @@ Rhence master context step 3–4 and MVP table ("Understanding a copied message 
 ## 8. Open items
 
 - **App ID mismatch:** the agent task text says `ph.merd.akmaai`; manifest, `app/build.gradle.kts:9,13`, APK and all docs use `ph.merd.akma` (`docs/BRAND_AND_PROVENANCE.md:6`). Not changed; Miguel to confirm which is official before submission.
-- **Bootstrap not on remote:** citations are to local commit `02df71a`; GitHub permalinks will resolve only after Miguel approves pushing `chore/akma-bootstrap` (`docs/PUBLISH_GITHUB.md` approval gate). This review branch is stacked on it and was **not pushed**; no PR opened.
+- **Bootstrap was pushed during this review** (draft PR #4, head `02df71a`, verified identical to the reviewed commit). This branch is stacked on it; the review PR targets `chore/akma-bootstrap` and should be retargeted to `main` after #4 merges.
 - F3 vs `docs/TEST_SCENARIOS.md` ("Hide and reopen: preserve UI state") needs a product decision.
 - F11 clipboard-import decision.
