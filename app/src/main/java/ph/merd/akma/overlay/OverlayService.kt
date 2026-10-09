@@ -182,7 +182,7 @@ class OverlayService : Service() {
     private fun bubbleBounds(): BubbleBounds {
         val metrics = windows.maximumWindowMetrics
         val bars = metrics.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
-        return BubbleBounds(metrics.bounds.width(), metrics.bounds.height(), dp(72), dp(4), bars.top, bars.bottom)
+        return BubbleBounds(metrics.bounds.width(), metrics.bounds.height(), dp(72), dp(4), bars.top, bars.bottom, bars.left, bars.right)
     }
 
     private fun bubbleParams() = WindowManager.LayoutParams(
@@ -251,7 +251,8 @@ class OverlayService : Service() {
         params.x = point.x
         params.y = point.y
         bubblePoint = point
-        windows.updateViewLayout(root, params)
+        try { windows.updateViewLayout(root, params) }
+        catch (_: RuntimeException) { fail("Overlay closed while moving. Continue in the Activity.") }
     }
 
     private fun snapBubble(root: View, params: WindowManager.LayoutParams) {
