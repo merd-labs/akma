@@ -15,7 +15,12 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
+import android.animation.ValueAnimator
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
+import android.view.WindowInsets
+import android.view.animation.DecelerateInterpolator
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.content.res.ColorStateList
@@ -47,6 +52,9 @@ class OverlayService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val lifecycle = OverlaySession(::attachBubble, ::releaseWindow, ::displayPanel, ::displayBubble, ::clearReplySession)
     private var watchingPermission = false
+    /** Where the user left the bubble; kept while the service runs, reset when Akma is switched off. */
+    private var bubblePoint: BubblePoint? = null
+    private var bubbleAnimator: ValueAnimator? = null
     private val permissionListener = AppOpsManager.OnOpChangedListener { operation, changedPackage ->
         if (operation == AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW && changedPackage == packageName) {
             mainHandler.post {
@@ -138,6 +146,7 @@ class OverlayService : Service() {
             outlineAmbientShadowColor = AkmaTokens.TEXT_PRIMARY.toInt()
             contentDescription = "Open Akma panel"
             isClickable = true
+            setOnTouchListener(BubbleDrag())
             setOnClickListener {
                 try { lifecycle.expand() }
                 catch (_: RuntimeException) { fail("Panel unavailable. Continue in the Activity.") }
@@ -152,15 +161,91 @@ class OverlayService : Service() {
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
+    private fun bubbleBounds(): BubbleBounds {
+        val metrics = windows.currentWindowMetrics
+        val bars = metrics.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars())
+        return BubbleBounds(metrics.bounds.width(), metrics.bounds.height(), dp(72), dp(4), bars.top, bars.bottom)
+    }
+
     private fun bubbleParams() = WindowManager.LayoutParams(
         dp(72), dp(72), WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
         PixelFormat.TRANSLUCENT,
     ).apply {
-        // Figma: right edge, a little below centre (y 520 of 800).
-        gravity = Gravity.END or Gravity.CENTER_VERTICAL
-        x = dp(4)
-        y = dp(156)
+        // Absolute position so the bubble can be dragged. First shown at the Figma spot:
+        // right edge, a little below centre (y 520 of 800).
+        gravity = Gravity.TOP or Gravity.START
+        val bounds = bubbleBounds()
+        val point = bounds.clamp(bubblePoint ?: bounds.initial(dp(156)))
+        x = point.x
+        y = point.y
+    }
+
+    /**
+     * Drag to move, release to snap to the nearer side edge. Movement within the touch slop is a tap
+     * and goes through performClick(), so the existing click handler (and accessibility) still opens the panel.
+     */
+    private inner class BubbleDrag : View.OnTouchListener {
+        private val slop = ViewConfiguration.get(this@OverlayService).scaledTouchSlop
+        private var downX = 0f
+        private var downY = 0f
+        private var start = BubblePoint(0, 0)
+        private var dragging = false
+
+        override fun onTouch(view: View, event: MotionEvent): Boolean {
+            val root = host ?: return false
+            val params = root.layoutParams as? WindowManager.LayoutParams ?: return false
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    bubbleAnimator?.cancel()
+                    downX = event.rawX
+                    downY = event.rawY
+                    start = BubblePoint(params.x, params.y)
+                    dragging = false
+                    view.drawableHotspotChanged(event.x, event.y)
+                    view.isPressed = true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - downX
+                    val dy = event.rawY - downY
+                    if (!dragging && isBubbleDrag(dx, dy, slop)) {
+                        dragging = true
+                        view.isPressed = false
+                    }
+                    if (dragging) moveBubble(root, params, bubbleBounds().clamp(BubblePoint(start.x + dx.toInt(), start.y + dy.toInt())))
+                }
+                MotionEvent.ACTION_UP -> {
+                    view.isPressed = false
+                    if (dragging) snapBubble(root, params) else view.performClick()
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    view.isPressed = false
+                    if (dragging) snapBubble(root, params)
+                }
+            }
+            return true
+        }
+    }
+
+    private fun moveBubble(root: View, params: WindowManager.LayoutParams, point: BubblePoint) {
+        // Only while the bubble (not the panel) owns this window.
+        if (panel != null || host !== root || !root.isAttachedToWindow) return
+        params.x = point.x
+        params.y = point.y
+        bubblePoint = point
+        windows.updateViewLayout(root, params)
+    }
+
+    private fun snapBubble(root: View, params: WindowManager.LayoutParams) {
+        val target = bubbleBounds().snap(BubblePoint(params.x, params.y))
+        bubblePoint = target
+        bubbleAnimator?.cancel()
+        bubbleAnimator = ValueAnimator.ofInt(params.x, target.x).apply {
+            duration = 200
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { moveBubble(root, params, BubblePoint(it.animatedValue as Int, target.y)) }
+            start()
+        }
     }
 
     private fun panelParams() = WindowManager.LayoutParams(
@@ -176,6 +261,7 @@ class OverlayService : Service() {
     }
 
     private fun displayPanel() {
+        bubbleAnimator?.cancel()
         check(Settings.canDrawOverlays(this))
         val root = checkNotNull(host)
         val view = OverlayPanel(this, session.replies) {
@@ -223,6 +309,8 @@ class OverlayService : Service() {
     }
 
     private fun releaseWindow() {
+        bubbleAnimator?.cancel()
+        bubbleAnimator = null
         mainHandler.removeCallbacksAndMessages(null)
         if (watchingPermission) {
             watchingPermission = false
