@@ -332,6 +332,14 @@ class ModelOutputSafetyTest {
         assertEquals(SafeFailure.MODEL_UNAVAILABLE, ModelOutputSafety.safeFailure(ModelUnavailableException()))
     }
 
+    @Test fun rejectedOutputMapsToAConstantUserMessage() {
+        SafetyRejection.entries.forEach { reason ->
+            val failure = ModelOutputSafety.safeFailure(UnsafeModelOutputException(reason))
+            assertEquals(SafeFailure.UNUSABLE_OUTPUT, failure)
+            assertFalse(failure.userMessage.contains(reason.name))
+        }
+    }
+
     @Test fun logDescriptionContainsLengthOnly() {
         val text = "my private reply"
         val description = ModelOutputSafety.describeForLog(text)

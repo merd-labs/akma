@@ -50,8 +50,15 @@ enum class SafeFailure(val userMessage: String) {
     OUT_OF_MEMORY("The phone ran out of memory while running the local model. Close other apps and retry."),
     RUNTIME_UNAVAILABLE("The local AI runtime is not available on this device."),
     MODEL_UNAVAILABLE("No local model is configured."),
+    UNUSABLE_OUTPUT("The local model returned an unusable reply. Retry."),
     GENERIC("Local processing failed. Check the model and retry."),
 }
+
+/**
+ * Thrown by an integration point when [ModelOutputSafety] rejects an output. Carries only the rejection class,
+ * never the rejected text.
+ */
+class UnsafeModelOutputException(val reason: SafetyRejection) : IllegalStateException("Model output rejected.")
 
 /**
  * Deterministic cleanup of untrusted local-model output before it is shown, edited or copied.
@@ -116,6 +123,7 @@ object ModelOutputSafety {
         error is CancellationException -> SafeFailure.CANCELLED
         error is OutOfMemoryError -> SafeFailure.OUT_OF_MEMORY
         error is LinkageError -> SafeFailure.RUNTIME_UNAVAILABLE // UnsatisfiedLinkError, NoClassDefFoundError, ...
+        error is UnsafeModelOutputException -> SafeFailure.UNUSABLE_OUTPUT
         error.javaClass.simpleName == "ModelUnavailableException" -> SafeFailure.MODEL_UNAVAILABLE
         else -> SafeFailure.GENERIC
     }
