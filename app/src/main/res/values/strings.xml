@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Akma</string>
+    <string name="tagline">The right words, for the right context.</string>
+    <string name="model_unavailable">Model unavailable</string>
+    <string name="baseline_status">Local AI is not configured. No AI drafts are available yet.</string>
+    <string name="workflow_intro">When ready, manually copy a message, paste it into Akma, choose an action and edit your draft. You control copying and sending.</string>
+</resources>
