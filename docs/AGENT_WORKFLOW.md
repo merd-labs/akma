@@ -4,12 +4,15 @@ Agent capacity is not a concurrency target. Each human owns and reviews one boun
 
 | Owner | Branch | Scope |
 |---|---|---|
+| Miguel | `chore/akma-bootstrap` | Gradle skeleton, genuine wrapper and manifest; bootstrap agent implements under his coordination, Elijah reviews |
 | Miguel | `feat/local-inference` | Model candidate and LocalReplyEngine adapter, no UI or shared Gradle edits without coordination |
-| Elijah | `feat/android-overlay` | Overlay, permissions, service lifecycle; owns initial Gradle skeleton and wrapper |
+| Elijah | `feat/android-overlay` | Overlay, permissions, service lifecycle; reviews baseline and integration, coordinates manifest changes with Miguel |
 | Danielle | `feat/assistant-ui` | Compose Activity and UI assets; depends only on shared contract |
 | Rhence | `test/workflow-qa` | Test fixtures, acceptance log, documentation/pitch, no app source mutations |
 
 Before work, read README, PRD, CONTRACT and DECISIONS. Every agent reports files changed, test commands/results, assumptions, remaining blockers, and whether its output is mocked or based on real model inference. Human review and merge after checks. Protect `docs/CONTRACT.md`, Gradle wrapper/dependency versions and model metadata with one owner.
+
+Miguel is the sole owner of Spec Kit integration and Matt Pocock Skills setup. Defer generated tooling until the Android baseline and contract merge; use installed CLI help and review changes once, not separate initialization from each agent.
 
 Typical Git worktree (after repo cloned and baseline commit):
 

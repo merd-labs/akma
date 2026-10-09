@@ -10,6 +10,8 @@ Official references:
 
 ## Specify CLI
 
+Owner: Miguel. Setup is deferred until the Android baseline and contract merge. Local audit finds Specify 1.1.1; `specify init --help` supports `--here`, `--integration`, `--script py`, `--force` and `--non-interactive`. No integration was initialized during bootstrap. Review installed help again before setup; `--force` can overwrite files.
+
 Check already-installed versions. Install from `uv tool install specify-cli` if needed. In this nonempty repo, back up/commit first and review generated changes:
 
 ```text

@@ -1,11 +1,11 @@
 # MERD — Next 90 minutes (start immediately)
 
-**Status:** Prepared documentation package, NOT a built Android app or a tested model. All clocks below are execution timeboxes, not organizer deadlines.
+**Status:** Android baseline with a model-unavailable Activity; see `BOOTSTRAP_VERIFICATION.md` for actual build evidence. No tested model or completed reply workflow. All clocks below are execution timeboxes, not organizer deadlines.
 
 ## 0–10 min — shared coordination
 
-- Miguel: confirm the actual GitHub org slug; create **one** private repository `akma`; extract bootstrap into repo; commit and push initial documentation (see `docs/PUBLISH_GITHUB.md`). No model weights/secrets.
-- Elijah: own Android project skeleton/Gradle wrapper; verify installed Java/SDK/Android Studio. Do NOT select AGP/JDK blindly.
+- Miguel: review the existing `merd-labs/akma` repository and baseline branch. Own Gradle, wrapper and manifest. Approve remote, branch and public visibility explicitly before any push; do not create another repository.
+- Elijah: review the Android baseline, wrapper and integration; coordinate shared configuration changes with Miguel.
 - Danielle: start design within `feat/assistant-ui` after baseline skeleton exists; until then, prepare design assets and explicit UI contract review.
 - Rhence: enter three synthetic scenarios in GitHub Issues; create QA checks and presentation outline.
 
@@ -15,7 +15,7 @@ Connect Pova 2 via USB with authorized debugging. See `docs/ADB_POVA2.md`. Verif
 
 ## 10–50 min — parallel spikes (after baseline branch created)
 
-1. **Elijah**: Android project builds and launches on the Pova 2, with no fake model output. Add safe, narrow overlay permissions only when overlay feature is underway.
+1. **Miguel / Elijah**: Review and merge the Android baseline, then prove launch on Pova 2. Elijah implements overlay after the baseline/contract merges; add permissions only when the feature requires them.
 2. **Miguel**: Execute real quantized model **on the Pova 2 itself**. First check LiteRT-LM build compatibility; if blocked, try portable llama.cpp Android ARM64 NDK path and Qwen2.5-0.5B-Instruct-GGUF Q4_K_M (license Apache-2.0). Existing llama.android example requires API 33: not directly compatible. Do not waste time adapting a huge model to a 6 GB device.
 3. **Danielle**: Create a usable Activity design with paste, action/tone, draft editing, clear model-ready/error states; use mock only with visible DEBUG label and never in submitted demo.
 4. **Rhence**: Test message quality for invitation/reschedule, complaint/acknowledge, deadline/clarify; ensure generated text never invents dates/commitments.

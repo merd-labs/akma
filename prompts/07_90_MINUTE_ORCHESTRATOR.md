@@ -6,7 +6,7 @@ Confirmed phone: Tecno Pova 2 LE7, Android 11/API 30, 6 GB physical RAM, 128 GB 
 
 GOAL: coordinate a compilable, Android-11-compatible Kotlin/Compose skeleton and a separate genuine on-device LLM feasibility spike. No backend, cloud inference, iOS, automatic message scraping, real system keyboard, or AccessibilityService.
 
-First inspect git status, existing Gradle files and installed SDK/JDK/NDK versions. Do not invent dependency compatibility; do not overwrite human-approved docs/contracts. Assign sole ownership of Gradle/manifest to Elijah; inference spike to Miguel; UI to Danielle; QA to Rhence. Do not launch multiple agents in the same worktree. Refuse to claim a passing build or local AI execution without actual logs/evidence.
+First inspect git status, existing Gradle files and installed SDK/JDK/NDK versions. Read `docs/BOOTSTRAP_VERIFICATION.md`; do not regenerate the baseline. Do not invent dependency compatibility or overwrite human-approved docs/contracts. Miguel owns Gradle/wrapper/manifest and inference; Elijah reviews integration and owns overlay; Danielle owns UI; Rhence owns QA. Do not launch parallel implementations before baseline/contract merge. Refuse to claim a passing build or local AI execution without actual evidence.
 
 SPECIAL RISKS: upstream `llama.cpp/examples/llama.android` currently sets minSdk 33 and cannot be copied unchanged for API 30; LiteRT-LM versions may have distinct JDK requirements. Check vendor sources and use pinning. Try official Qwen2.5-0.5B-Instruct-GGUF Q4_K_M as a small CPU candidate only if license and exact model file are verified. Runtime choice remains provisional until device proof. Do not add weights to Git.
 
