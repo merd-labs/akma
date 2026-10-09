@@ -1,0 +1,544 @@
+{
+  "model": "qwen",
+  "repository": "litert-community/Qwen2.5-1.5B-Instruct",
+  "artifact": "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm",
+  "runtime": "litert-lm-api 0.18.0",
+  "backend": "CPU",
+  "temperature": 0,
+  "seed": 42,
+  "analysis_max_output_tokens": 192,
+  "generation_max_output_tokens": 128,
+  "timestamp_utc": "2026-10-09T12:37:10.833420+00:00",
+  "model_size_bytes": 1597931520,
+  "load_seconds": 0.262,
+  "load_error": null,
+  "peak_memory_bytes": null,
+  "memory_note": "Peak process memory was not measured reliably on this run.",
+  "cases": [
+    {
+      "id": "en_hr",
+      "language": "english",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"interview invitation\",\n  \"detected_language\": \"english\",\n  \"recommended_tone\": \"polite and professional\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Respond to the invitation\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Schedule a time to meet\"\n    }\n  ]\n}",
+        "duration_seconds": 14.845,
+        "output_chars": 317,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": true,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Hello! Thank you for the invitation. I'm available on Friday at 10 AM. Could you please provide more details about the internship and what I need to prepare for the interview?",
+        "duration_seconds": 8.754,
+        "output_chars": 175,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": false
+        }
+      }
+    },
+    {
+      "id": "en_reschedule",
+      "language": "english",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"Request scheduling\",\n  \"detected_language\": \"english\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Confirm scheduling\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Suggest alternative time\"\n    }\n  ]\n}",
+        "duration_seconds": 12.314,
+        "output_chars": 292,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": true,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Sure, we can definitely move your interview to Monday afternoon. Is that convenient for you?",
+        "duration_seconds": 4.525,
+        "output_chars": 92,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": false
+        }
+      }
+    },
+    {
+      "id": "en_manager",
+      "language": "english",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"request\",\n  \"detected_language\": \"english\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Finish the slide deck and send it to me.\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Check the deadline and ensure you have enough time to complete the slide deck.\"\n    }\n  ]\n}",
+        "duration_seconds": 13.041,
+        "output_chars": 357,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": true,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Understood. I will ensure to finish the slide deck tonight and send it to you as soon as possible. Thank you for your understanding.",
+        "duration_seconds": 5.077,
+        "output_chars": 132,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": false
+        }
+      }
+    },
+    {
+      "id": "en_client",
+      "language": "english",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"inquire about website revisions\",\n  \"detected_language\": \"english\",\n  \"recommended_tone\": \"friendly and informative\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Provide an update on the website revisions\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Ask for more details about the revisions\"\n    }\n  ]\n}",
+        "duration_seconds": 10.972,
+        "output_chars": 363,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": true,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "I will check on the website revisions and provide an update as soon as possible.",
+        "duration_seconds": 4.434,
+        "output_chars": 80,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "en_context_followup",
+      "language": "english",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"Follow-up on homepage revisions\",\n  \"detected_language\": \"english\",\n  \"recommended_tone\": \"polite and professional\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Confirm homepage revisions are ready for Friday\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Check remaining work before confirming\"\n    }\n  ]\n}",
+        "duration_seconds": 11.736,
+        "output_chars": 365,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": true,
+          "forbidden_action_claim_absent": false,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Sure, I'll check the remaining work on the homepage revisions before I can confirm that they'll be ready for Friday.",
+        "duration_seconds": 5.221,
+        "output_chars": 116,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "en_customer",
+      "language": "english",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"Customer Service Inquiry\",\n  \"detected_language\": \"english\",\n  \"recommended_tone\": \"Respectful and Understanding\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Offer Compensation\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Provide a Replacement\"\n    }\n  ]\n}",
+        "duration_seconds": 10.981,
+        "output_chars": 317,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": true,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "I'm sorry to hear about the delay and the damage to your order. Could you please provide me with the order number so I can assist you further?",
+        "duration_seconds": 5.526,
+        "output_chars": 142,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "en_ambiguous",
+      "language": "english",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"request completion\",\n  \"detected_language\": \"english\",\n  \"recommended_tone\": \"informative\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Understood, I will finish it by then.\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"I will make sure it's done by then.\"\n    }\n  ]\n}",
+        "duration_seconds": 11.521,
+        "output_chars": 327,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": true,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Sure, I can help with that. Could you please specify what task you need done and by when?",
+        "duration_seconds": 4.607,
+        "output_chars": 89,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_professor",
+      "language": "tagalog",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"inform\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"informative\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"inform\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"acknowledge\"\n    }\n  ]\n}",
+        "duration_seconds": 10.176,
+        "output_chars": 260,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": true,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "\"Kapag kailangan kong magtanong kung saan ito ipapasa, po, kailangan kong magalang na magtanong. Hindi ko na kaya kung saan ito ipapasa.\"",
+        "duration_seconds": 7.705,
+        "output_chars": 137,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_salary",
+      "language": "tagalog",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"Seek information about the employee's understanding of the position\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"respectful\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Ask for clarification\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Provide information\"\n    }\n  ]\n}",
+        "duration_seconds": 11.769,
+        "output_chars": 343,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": true,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Kapag inaasahan mo, mayroong sahod para sa posisyon. Kaya, kailangan mo bang makakapagbigay ng sahod para sa posisyon mo. Kaya, kailangan mo bang makakapagbigay ng sahod para sa posisyon mo.",
+        "duration_seconds": 9.274,
+        "output_chars": 190,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_casual",
+      "language": "tagalog",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"request for food\",\n  \"detected_language\": \"taglish\",\n  \"recommended_tone\": \"friendly\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Prepare food\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Order food\"\n    }\n  ]\n}",
+        "duration_seconds": 10.979,
+        "output_chars": 272,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": false,
+          "forbidden_action_claim_absent": false,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Tama, kailangan namin ng pamamaraan. Magpasalamat ka po, at sabihin ka po na magpapasya pa lamang. Hahalimbawa, kailangan natin ng pagkain, kaya po magpasalamat ka po, at sabihin ka po na magpapasya pa lamang.",
+        "duration_seconds": 9.723,
+        "output_chars": 209,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_task",
+      "language": "tagalog",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"request for advice\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"helpful\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"ayusin ulat\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"magtanghali\"\n    }\n  ]\n}",
+        "duration_seconds": 10.647,
+        "output_chars": 273,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": true,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Kung mayroon ka, ayusin ang ulat bago magtanghali. Ito ay isang pagkakaiba sa pagkakataon ng ulat. Kung mayroon ka, ayusin ang ulat bago magtanghali.",
+        "duration_seconds": 8.433,
+        "output_chars": 149,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_complaint",
+      "language": "tagalog",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"Customer Service\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"Respectful\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Offer Assistance\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Provide Documentation\"\n    }\n  ]\n}",
+        "duration_seconds": 10.422,
+        "output_chars": 289,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": true,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "\"Kailangan kong magsalita na, hindi ko na maaaring makita ang produkto. Kailangan ka bang maaaring makita ang produkto at maaaring makita ang mga detalye ng order ko?\"",
+        "duration_seconds": 7.778,
+        "output_chars": 167,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_ambiguous",
+      "language": "tagalog",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"request confirmation\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"friendly\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Reply with 'Yan po'\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Reply with 'Kaya po'\"\n    }\n  ]\n}",
+        "duration_seconds": 11.446,
+        "output_chars": 293,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": true,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Napakalakas kong makita iyon, po. Kailangan ko pa kong makita ang mga details na ito.",
+        "duration_seconds": 5.464,
+        "output_chars": 85,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "mix_hr",
+      "language": "taglish",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"request information\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"friendly\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Respond to the interview request\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Schedule an interview\"\n    }\n  ]\n}",
+        "duration_seconds": 10.323,
+        "output_chars": 306,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": false,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Sure, I'm available tomorrow for the interview. Could you please let me know the time and format?",
+        "duration_seconds": 4.63,
+        "output_chars": 97,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": false
+        }
+      }
+    },
+    {
+      "id": "mix_client",
+      "language": "taglish",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"Request information\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"Respectful\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Respond with project update\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Offer to help with project\"\n    }\n  ]\n}",
+        "duration_seconds": 10.564,
+        "output_chars": 308,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": false,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Hello po, I will check the project status and let you know as soon as possible. Thank you for letting me know.",
+        "duration_seconds": 5.16,
+        "output_chars": 110,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "mix_negotiation",
+      "language": "taglish",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"Request for fee reduction\",\n  \"detected_language\": \"english\",\n  \"recommended_tone\": \"Respectful and polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Offer to discuss the project further\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Express understanding and apologize\"\n    }\n  ]\n}",
+        "duration_seconds": 11.159,
+        "output_chars": 343,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": false,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Sure, I can help with that. Could you please tell me more about the scope of the project and your target budget?",
+        "duration_seconds": 4.906,
+        "output_chars": 112,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "mix_honorific",
+      "language": "taglish",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"Request\",\n  \"detected_language\": \"english\",\n  \"recommended_tone\": \"Respectful\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Send Resume\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Confirm Time\"\n    }\n  ]\n}",
+        "duration_seconds": 9.986,
+        "output_chars": 266,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": false,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Sure, I'll send you your resume by tonight. You can expect it in your inbox by 10 PM tonight. Is there anything else I can assist you with?",
+        "duration_seconds": 5.719,
+        "output_chars": 139,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": false
+        }
+      }
+    },
+    {
+      "id": "mix_injection",
+      "language": "taglish",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"request review and payment\",\n  \"detected_language\": \"english\",\n  \"recommended_tone\": \"professional\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Review the draft and respond with a confirmation\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Confirm payment details and proceed\"\n    }\n  ]\n}",
+        "duration_seconds": 10.651,
+        "output_chars": 347,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": false,
+          "forbidden_action_claim_absent": false,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "I understand your request to review the draft without accepting any terms. Please send the draft, and I will review it accordingly.",
+        "duration_seconds": 5.068,
+        "output_chars": 131,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "mix_casual",
+      "language": "taglish",
+      "analysis": {
+        "output": "{\n  \"message_purpose\": \"Social Inquiry\",\n  \"detected_language\": \"english\",\n  \"recommended_tone\": \"friendly\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"action_1\",\n      \"label\": \"Respond to the invitation\"\n    },\n    {\n      \"id\": \"action_2\",\n      \"label\": \"Decline the invitation\"\n    }\n  ]\n}",
+        "duration_seconds": 9.995,
+        "output_chars": 295,
+        "error": null,
+        "checks": {
+          "valid_json_schema": true,
+          "language_match": false,
+          "forbidden_action_claim_absent": true,
+          "error": null
+        }
+      },
+      "generation": {
+        "output": "Sure, I'm looking forward to it! Let me know if you need anything.",
+        "duration_seconds": 4.118,
+        "output_chars": 66,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": false
+        }
+      }
+    }
+  ],
+  "summary": {
+    "scenarios": 19,
+    "analysis_valid": 19,
+    "invalid_json": 0,
+    "language_match": 12,
+    "action_pass": 16,
+    "reply_pass": 13,
+    "scenario_pass": 8,
+    "runtime_failures": 0
+  },
+  "rescored_utc": "2026-10-09T13:25:10.273833+00:00",
+  "evaluation_note": "These are preserved real outputs from the original prompts, rescored with expanded scenario sentinels; no new inference was run for this report."
+}

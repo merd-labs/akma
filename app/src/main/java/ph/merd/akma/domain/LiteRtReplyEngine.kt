@@ -86,15 +86,16 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
             .put("tone", request.tone.name.lowercase(Locale.ROOT))
             .put("user_instructions", safe.userInstruction).toString()
         val actionRule = when (request.selectedActionId) {
-            "reschedule" -> "The user selected RESCHEDULE. Ask the sender for a different interview time. Do not say you are available Friday at 10 or accept that time."
+            "reschedule" -> "The user selected RESCHEDULE. Ask for a different time. Do not invent an excuse, do not invent availability, and do not accept their proposed time."
             "clarify", "ask_agenda", "ask_to_clarify" -> "The user selected a question. Ask for details before agreeing to anything."
-            "decline" -> "The user selected DECLINE. Politely decline without an invented excuse."
+            "decline" -> "The user selected DECLINE. Politely decline. Do not accept the request, and do not invent an excuse."
+            "acknowledge" -> "The user selected ACKNOWLEDGE. Acknowledge receipt only. Do not promise to do any work or agree to any request."
             else -> "Follow the selected action exactly."
         }
         val raw = generate(prompt("generate_v2.txt") + "\n" + actionRule, input, 128)
         val draft = LocalModelOutput.draft(raw)
         if (request.selectedActionId == "reschedule") {
-            require(!Regex("(?i)\\b(i(?:'m| am)|we(?:'re| are))\\s+(?:available|free)\\b").containsMatchIn(draft)) {
+            require(!Regex("(?i)\\b(?:(i(?:'m| am)|we(?:'re| are))\\s+(?:available|free)|(?:available|free|libre)\\s+(?:ako|tayo|kami))\\b").containsMatchIn(draft)) {
                 "Draft contradicts reschedule action."
             }
         }
