@@ -1,0 +1,108 @@
+diff --git a/app/src/main/java/ph/merd/akma/ui/JourneyPanelUi.kt b/app/src/main/java/ph/merd/akma/ui/JourneyPanelUi.kt
+index 44de1d0..060b061 100644
+--- a/app/src/main/java/ph/merd/akma/ui/JourneyPanelUi.kt
++++ b/app/src/main/java/ph/merd/akma/ui/JourneyPanelUi.kt
+@@ -5,6 +5,8 @@ import ph.merd.akma.domain.ReplyPhase
+ import ph.merd.akma.domain.ReplyState
+ import ph.merd.akma.domain.ReplyTone
+ import ph.merd.akma.domain.ReplyValidation
++import ph.merd.akma.safety.DraftGrounding
++import ph.merd.akma.safety.GroundingReport
+ 
+ /** What the panel shows. Built only from coordinator state; it never invents text. */
+ data class JourneyPanelUi(
+@@ -53,7 +55,8 @@ data class ConfirmationUi(
+ 
+ sealed interface ReplyUi {
+     data object Writing : ReplyUi
+-    data class Draft(val text: String) : ReplyUi
++    /** [review] is advisory only (see DraftGrounding): it never blocks Copy and makes no faithfulness claim. */
++    data class Draft(val text: String, val review: GroundingReport = GroundingReport(emptySet(), emptyList())) : ReplyUi
+ }
+ 
+ enum class CopyUi { Hidden, Disabled, Ready, Copied }
+@@ -126,7 +129,7 @@ fun ReplyState.toPanelUi(selectedTone: ReplyTone, lastSelectedActionId: String?)
+         ReplyPhase.Editing, ReplyPhase.Copied -> base.copy(
+             intent = intent,
+             choice = choice(enabled = canChooseDraft),
+-            reply = ReplyUi.Draft(draft),
++            reply = ReplyUi.Draft(draft, DraftGrounding.check(draft, message, actionId = lastSelectedActionId)),
+             copy = when {
+                 !canCopy -> CopyUi.Disabled
+                 phase == ReplyPhase.Copied -> CopyUi.Copied
+diff --git a/app/src/main/java/ph/merd/akma/ui/components/Reply.kt b/app/src/main/java/ph/merd/akma/ui/components/Reply.kt
+index 2ef547f..58f201e 100644
+--- a/app/src/main/java/ph/merd/akma/ui/components/Reply.kt
++++ b/app/src/main/java/ph/merd/akma/ui/components/Reply.kt
+@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.contentDescription
+ import androidx.compose.ui.semantics.semantics
+ import androidx.compose.ui.unit.dp
+ import ph.merd.akma.R
++import ph.merd.akma.safety.GroundingConcern
+ import ph.merd.akma.ui.ReplyUi
+ import ph.merd.akma.ui.theme.AkmaRadius
+ import ph.merd.akma.ui.theme.AkmaSpacing
+@@ -81,11 +82,28 @@ fun ReplyCard(reply: ReplyUi, onTextChange: (String) -> Unit, modifier: Modifier
+                         .border(if (focused) 1.5.dp else 1.dp, if (focused) colors.bgBrand else colors.borderDefault, ReplyBubbleShape)
+                         .padding(AkmaSpacing.md),
+                 )
++                ReviewNotes(reply)
+             }
+         }
+     }
+ }
+ 
++/** Plain, non-blocking reminders shown under a draft. They mention that something needs checking, never that it is wrong. */
++@Composable
++private fun ReviewNotes(draft: ReplyUi.Draft) {
++    val colors = AkmaTheme.colors
++    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(AkmaSpacing.xs)) {
++        draft.review.concerns.forEach { concern ->
++            val text = when (concern) {
++                GroundingConcern.UNGROUNDED_DETAIL -> R.string.akma_review_details
++                GroundingConcern.COMMITMENT_PHRASE -> R.string.akma_review_commitment
++                GroundingConcern.UNAVAILABILITY_CLAIM -> R.string.akma_review_availability
++            }
++            Text(stringResource(text), style = AkmaTheme.type.caption, color = colors.textSecondary)
++        }
++    }
++}
++
+ @Composable
+ private fun WritingSkeleton() {
+     val label = stringResource(R.string.akma_writing_on_phone)
+diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
+index 20d7082..00225b2 100644
+--- a/app/src/main/res/values/strings.xml
++++ b/app/src/main/res/values/strings.xml
+@@ -13,6 +13,9 @@
+     <string name="akma_source_deterministic">Not classified. Showing general replies.</string>
+     <string name="akma_what_to_say">What do you want to say?</string>
+     <string name="akma_your_reply">Your reply</string>
++    <string name="akma_review_details">Check the times, dates or amounts in this draft: some are not in the message you pasted.</string>
++    <string name="akma_review_commitment">Check the promises in this draft. Edit it if it commits you to something you did not choose.</string>
++    <string name="akma_review_availability">This draft says you are unavailable. You did not say that, so edit it if it is wrong.</string>
+     <string name="akma_tap_to_edit">Tap to edit</string>
+     <string name="akma_writing_on_phone">Writing on this phone</string>
+     <string name="akma_copy_reply">Copy reply</string>
+diff --git a/app/src/test/java/ph/merd/akma/ui/PanelStateMapperTest.kt b/app/src/test/java/ph/merd/akma/ui/PanelStateMapperTest.kt
+index ad99d66..d2af614 100644
+--- a/app/src/test/java/ph/merd/akma/ui/PanelStateMapperTest.kt
++++ b/app/src/test/java/ph/merd/akma/ui/PanelStateMapperTest.kt
+@@ -137,4 +137,16 @@ class PanelStateMapperTest {
+             assertTrue("$phase", reply == null || reply == ReplyUi.Writing || reply == ReplyUi.Draft(""))
+         }
+     }
++
++    @Test
++    fun draftReviewFlagsInventedUnavailabilityWithoutBlockingCopy() {
++        val editing = ReplyState(
++            phase = ReplyPhase.Editing, message = "Interview this Friday at 2 PM. Are you available?", analysis = analysis,
++            draft = "Sorry, I am not available on Friday at 2 PM. Could we reschedule?",
++        )
++        val ui = editing.ui(selected = "reschedule")
++        val reply = ui.reply as ReplyUi.Draft
++        assertTrue(ph.merd.akma.safety.GroundingConcern.UNAVAILABILITY_CLAIM in reply.review.concerns)
++        assertEquals(CopyUi.Ready, ui.copy) // advisory only
++    }
+ }
