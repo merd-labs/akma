@@ -30,6 +30,8 @@ Read from the device at 18:28:50 UTC, without installing or launching a replacem
 
 ## Model and release gates
 
+Unless explicitly stated, physical results below refer to initial source `53b087c` / APK `d8f9b23a...`. The newer release has separate gates at the end of this document.
+
 PR #26 head `ae7f0946c6a6be26fd159650900da6769eb81008` pins the Qwen filename/revision/size/SHA documented in `docs/model-provisioning/INTEGRATION.md`. The published pinned artifact SHA matches the owner metadata. That metadata check is PASS; downloaded-byte verification is a separate gate. An existing host partial file measured 853,168,128 bytes, so it failed the expected 1,597,931,520-byte size check and was not used. A separate private download was started. At 18:43 UTC, a complete existing host download was copied into private staging and independently verified by the JDK17 streaming verifier: exact size, LITERTLM header and trusted SHA all PASS. The duplicate owned download was stopped and only its own partial file removed. No weights are committed.
 
 | Gate | Result | Evidence or gap |
@@ -38,16 +40,19 @@ PR #26 head `ae7f0946c6a6be26fd159650900da6769eb81008` pins the Qwen filename/re
 | Exact combined APK embedded model integrity | PASS | Source 53b087c; model exact size/header/SHA; uncompressed; ARM64 JNI ELF |
 | Exact combined APK install/launch on API 30 | PASS | Frozen 53b087c APK independently hashed on device after installation; Activity cold launch 2,965 ms |
 | Existing private model verification and native loading | PASS | Private model SHA matches the trusted pin; real CPU native initialization completed |
-| First bundled import on phone | NOT TESTED | Model was already provisioned by the earlier installation |
+| Interrupted first bundled import | PASS | 16,515,072-byte partial observed; destination absent after process stop; original preserved |
+| Restarted import completion on initial APK | FAIL | Orphan removed but no verified publication during bounded observation; original restored |
 | Cold/warm initialization | FAIL / PASS | Cold native initialization 62,915 ms exceeds 60,000 ms coordinator limit; user reached Ready after Retry; warm native initialization 1,469 ms |
 | Ready after process restart | NOT TESTED | Cold launch was tested; a second full restart gate remains pending |
-| Three English/Filipino/Taglish offline attempts | NOT TESTED | First English draft confirmed; Filipino and Taglish completion not yet observed |
+| Three consecutive offline attempts | PASS | English, Filipino and Taglish each completed native analysis and drafting; semantic results differ |
 | First English synthetic draft and fidelity | PASS | User confirms Professional / Reschedule intent preserved without invented commitments; actual 115-character reply retained privately |
-| Filipino and Taglish fidelity | NOT TESTED | Pending manual attempts |
-| Import interruption and corruption recovery on phone | NOT TESTED | Unit fixtures do not establish physical behavior |
+| Filipino fidelity | FAIL | Exact synthetic fixture; actual parsed reply is an unsupported English refusal; user report exactly matches private UI evidence |
+| Taglish fidelity | FAIL | Synthetic input matches requested words after punctuation normalization; user reports wrong language or intent |
+| Import interruption and cleanup on phone | PASS | Partial never published; restart removed orphan |
+| Physical same-size corruption repair | NOT TESTED | Requires latest-source debug diagnostic artifact; JVM cases already pass |
 | Initialization memory and thermal snapshots | PASS | Post-cold-init PSS 2,207,090 kB; RSS 2,293,032 kB; thermal status 0; these are sampled values, not peaks |
 | First native analysis/draft latency | PASS | Analysis generation 59,588 ms; draft generation 55,871 ms; both completed and a draft is visible |
-| Repeated-generation stability | NOT TESTED | One confirmed draft cannot establish repeated stability |
+| Three-attempt native completion | PASS | Six native generation operations completed; no observed native crash/OOM; no long-run stability guarantee |
 | Same frozen APK on Camon 30 | NOT TESTED | PR #26's earlier CL6/API36 generation used a different APK; mobile-data disablement was not recorded |
 | Native Windows tooling execution | NOT TESTED | PowerShell-on-Ubuntu tests are separate |
 
@@ -140,3 +145,31 @@ Primary published source `3a3071139b6474c8ba393ccdf800e98be55c2d5a`, a non-debug
 - Exact-head hosted Android/documentation CI: PASS. Primary reports combined 280 local tests, debug/release lint and release assembly PASS; those local results are owner-reported, not rerun by Quaternary.
 
 Physical installation, startup, offline inference, lifecycle/cancellation/retry, and repeated generation for this new release SHA remain NOT TESTED. None of the earlier debug APK's results are substituted for the release gate. Its installation will wait until the current manual test has ended.
+
+## Second attempt — Filipino semantic failure
+
+The requested synthetic Filipino fixture was observed byte-exact in Akma's input field. With Reschedule / Professional requested, native analysis completed in 58,157 ms (379 raw characters logged), then native drafting in 49,839 ms (225 raw characters logged). Akma reached Edit your draft with a parsed 40-character reply. Raw native character counts are not necessarily the displayed reply length because the adapter can extract a JSON reply field.
+
+Miguel reported failure, then supplied the observed reply privately in the QA conversation. It exactly matched the separately retained Akma UI field. The reply is a generic English refusal of a benign interview rescheduling request, so language and selected-intent fidelity are FAIL. No reply text is committed. This is a genuine native inference result with an unacceptable product response; it is not an observed native/JNI/OOM failure or a visible runtime error banner.
+
+The engine/prompt owner received precise reproduction and private evidence location in [PR #26](https://github.com/merd-labs/akma/pull/26#issuecomment-6088127232) and [PR #27](https://github.com/merd-labs/akma/pull/27#issuecomment-6088118698). Quaternary changes no inference or prompt code. The new release's timeout/recovery changes alone do not establish that this semantic failure is fixed.
+
+At 19:50:08 UTC: available RAM 2,680,204 kB; /data/user/0 free 3,550,044 KiB; battery temperature 27.6 °C. At 19:48:56 UTC: process PSS 1,457,986 kB; RSS 1,454,740 kB; SWAP PSS 81,408 kB; thermal status 0; process running. Swap and resident totals are different measures and are not interchangeable. Neither these snapshots nor a successful native operation establish peak memory, leak absence or repeated semantic reliability.
+
+Evidence-only head `f61291fded6077717b97e5e53f4cdb0179134a56` hosted Android/documentation checks PASS: [push](https://github.com/merd-labs/akma/actions/runs/37981847233), [PR](https://github.com/merd-labs/akma/actions/runs/37981854217).
+
+## Third attempt — Taglish fidelity failure
+
+The third input matched the requested synthetic Taglish words after punctuation/case/spacing normalization; it was not byte-exact. Native analysis completed in 44,148 ms (250 raw characters logged); drafting completed in 36,345 ms (51 characters logged). A 51-character editable reply was retained privately from Akma UI. Miguel reports wrong language or intent, so Taglish fidelity is FAIL. The precise semantic subtype is not inferred from automated wording checks.
+
+Three consecutive offline user attempts completed native analysis and drafting on the same initial debug APK, without a process restart between them. English fidelity PASS; Filipino fidelity FAIL (unsupported English refusal); Taglish fidelity FAIL. Six completed native operations do not establish long-run stability or semantics. The new release APK has separate gates.
+
+At 19:51:07 UTC, process PSS 2,081,471 kB, RSS 2,076,202 kB and SWAP PSS 83,571 kB; thermal status 0; process running. No serious thermal event or native crash was observed during the three-attempt sequence. First-token latency, measured token count, throughput, GPU acceleration and 4 GB compatibility remain NOT TESTED.
+
+## Controlled import interruption and recovery
+
+After the three user attempts ended, Akma alone was stopped. Its original model was renamed into a private backup in the same directory; no model or user data was discarded. Launching the initial debug APK triggered a real bundled import. At 19:56:17 UTC, a 16,515,072-byte partial had been observed. Akma was stopped before publication; the final installed-model destination was absent and the original backup remained intact. Interrupted-import safety is PASS.
+
+Restarting removed the original orphan partial, but no verified model destination appeared during the bounded observation window. Recovery completion is FAIL for the initial APK. Its 60,000 ms initialization deadline is a suspected cause; no direct timeout/error banner was captured, so that cause is not reported as observed fact. The test collector stopped Akma and the original model was restored by rename: 1,597,931,520 bytes, no backup remaining. No app-data clear or unrelated process termination occurred.
+
+Quaternary created a separate read-only validation worktree at exact `3a30711` to build a debug diagnostic variant under the new initialization budget. No tracked engine/UI/coordinator/Gradle/manifest changes are made there. Initial model staging failed because another owner's temporary artifact path had disappeared; the first build is therefore source validation, not a model-enabled artifact claim. The surviving integration asset independently passed exact size/header/SHA checks and is retained by an owned hard link for the subsequent diagnostic build. The frozen release APK's already verified identity is unaffected.
