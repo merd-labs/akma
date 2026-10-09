@@ -9,6 +9,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
@@ -17,6 +18,95 @@ import org.junit.Test
 /** Tests the production callback bridge with synthetic callbacks, never JNI termination or generated prose quality. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class NativeReplyOperationTest {
+    @Test fun missingTerminalCallbackLeavesCoordinatorNonBusyAndBlocksFurtherInference() = runTest {
+        val runtime = NativeHandleSlot<AutoCloseable>()
+        lateinit var callbacks: NativeReplyCallbacks
+        var starts = 0
+        var initializations = 0
+        val operation = NativeReplyOperation(20, onCancellationFailure = { runtime.quarantine() })
+        val engine = object : LocalReplyEngine, RuntimeRecovery {
+            override val requiresRestart get() = runtime.quarantined
+            override suspend fun invalidateRuntime() = runtime.invalidate()
+            override suspend fun initialize(): Result<Unit> {
+                initializations++
+                runtime.install(AutoCloseable {})
+                return Result.success(Unit)
+            }
+            override suspend fun analyze(request: AnalyzeRequest) = Result.success(AnalysisResult(
+                "interview_invitation", "Synthetic analysis", true,
+                listOf(requireNotNull(ActionCatalog.action("reschedule"))), AnalysisSource.DETERMINISTIC,
+            ))
+            override suspend fun draft(request: DraftRequest): Result<String> = Result.success(
+                operation.await({ starts++; callbacks = it }, {}),
+            )
+        }
+        val replies = ReplyCoordinator(engine, backgroundScope, StandardTestDispatcher(testScheduler))
+        try {
+            replies.initialize(); runCurrent()
+            replies.setMessage("Synthetic invitation"); replies.analyze(); runCurrent()
+            replies.draft("reschedule", ReplyTone.PROFESSIONAL)
+            replies.confirmDraft(requireNotNull(replies.state.value.pendingConfirmation).id); runCurrent()
+            assertEquals(ReplyPhase.Drafting, replies.state.value.phase)
+            replies.cancel(); runCurrent()
+            assertFalse(replies.state.value.busy)
+            advanceTimeBy(5_001); runCurrent()
+            assertEquals(ReplyPhase.Error, replies.state.value.phase)
+            assertEquals("Local AI cleanup failed. Restart Akma before retrying.", replies.state.value.notice)
+            assertFalse(replies.state.value.canCopy)
+            assertNull(replies.state.value.pendingConfirmation)
+            callbacks.onText("Late output"); callbacks.onComplete(); runCurrent()
+            assertEquals("", replies.state.value.draft)
+            replies.setMessage("New synthetic message"); replies.analyze(); replies.initialize(); runCurrent()
+            assertEquals(1, starts)
+            assertEquals(1, initializations)
+            assertTrue(runtime.quarantined)
+            assertFalse(replies.state.value.busy)
+        } finally {
+            callbacks.onComplete(CancellationException("Synthetic cleanup")); runCurrent()
+        }
+    }
+
+    @Test fun missingTerminalCallbackEndsCleanupWithoutClosingOrReusingNativeHandles() = runTest {
+        val runtime = NativeHandleSlot<AutoCloseable>()
+        val conversation = NativeHandleSlot<AutoCloseable>()
+        var closes = 0
+        runtime.install(AutoCloseable { closes++ })
+        conversation.install(AutoCloseable { closes++ })
+        val operation = NativeReplyOperation(20, onCancellationFailure = { runtime.quarantine() })
+        lateinit var callbacks: NativeReplyCallbacks
+        var cancellations = 0
+        var output: String? = null
+        val job = launch {
+            try {
+                output = operation.await({ callbacks = it }, { cancellations++ })
+            } finally {
+                if (operation.started && !operation.completed) conversation.quarantine()
+                else conversation.invalidate().getOrThrow()
+            }
+        }
+        try {
+            runCurrent()
+            callbacks.onText("Partial output")
+            job.cancel(); runCurrent()
+            advanceTimeBy(5_001); runCurrent()
+            assertTrue("Missing native terminal callback must not hold coroutine cleanup forever", job.isCompleted)
+            assertTrue(job.isCancelled)
+            assertEquals(1, cancellations)
+            assertEquals(0, closes)
+            assertTrue(runtime.quarantined)
+            assertTrue(conversation.quarantined)
+            assertNull(runtime.current)
+            assertNull(conversation.current)
+            callbacks.onText("Late output"); callbacks.onComplete(); runCurrent()
+            assertFalse("Late callback must not make quarantined work reusable", operation.completed)
+            assertNull(output)
+            assertTrue(runtime.invalidate().exceptionOrNull() is RuntimeRestartRequiredException)
+        } finally {
+            // Complete a broken implementation too, so the reproducer fails an assertion without hanging its test scope.
+            callbacks.onComplete(CancellationException("Synthetic cleanup")); runCurrent()
+        }
+    }
+
     @Test fun cancellationBeforeStartupNeverInvokesNativeGeneration() = runTest {
         val operation = NativeReplyOperation(20)
         var starts = 0

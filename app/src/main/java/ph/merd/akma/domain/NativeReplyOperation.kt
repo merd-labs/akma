@@ -6,6 +6,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** The terminal callback, not coroutine cancellation, establishes when a conversation may be closed. */
 internal interface NativeReplyCallbacks {
@@ -16,14 +17,17 @@ internal interface NativeReplyCallbacks {
 internal class NativeReplyOperation(
     private val maxRawChars: Int,
     private val onCancellationFailure: () -> Unit = {},
+    private val cancellationCleanupMillis: Long = 5_000,
 ) {
+    init { require(cancellationCleanupMillis > 0) }
     private val terminal = CompletableDeferred<Result<String>>()
     private val lock = Any()
     private val buffer = StringBuilder()
     private var tooLong = false
+    private var abandoned = false
     private val callbacks = object : NativeReplyCallbacks {
         override fun onText(text: String) = synchronized(lock) {
-            if (!terminal.isCompleted && !tooLong) {
+            if (!abandoned && !terminal.isCompleted && !tooLong) {
                 if (text.length > maxRawChars - buffer.length) {
                     tooLong = true
                     buffer.setLength(0)
@@ -33,7 +37,7 @@ internal class NativeReplyOperation(
         }
 
         override fun onComplete(error: Throwable?) = synchronized(lock) {
-            if (!terminal.isCompleted) {
+            if (!abandoned && !terminal.isCompleted) {
                 terminal.complete(when {
                     error != null -> Result.failure(error)
                     tooLong -> Result.failure(IllegalStateException("Native reply exceeds the raw text limit."))
@@ -72,8 +76,17 @@ internal class NativeReplyOperation(
                 } finally {
                     if (!requested) onCancellationFailure()
                 }
-                // Keep the worker's engine mutex until native completion. A hung JNI operation requires process restart.
-                val completion = terminal.await()
+                // A missing callback must not hold coroutine cleanup forever. Quarantine instead of closing
+                // potentially running native handles; later requests must require process restart.
+                val completion = withTimeoutOrNull(cancellationCleanupMillis) { terminal.await() }
+                if (completion == null) {
+                    synchronized(lock) {
+                        abandoned = true
+                        buffer.setLength(0)
+                    }
+                    if (requested) onCancellationFailure()
+                    return@withContext
+                }
                 val failure = completion.exceptionOrNull()
                 if (failure != null && failure !is CancellationException) throw failure
                 cancellation.getOrThrow()
