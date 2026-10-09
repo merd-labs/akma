@@ -1,20 +1,21 @@
 # Overlay lifecycle evidence
 
-Owner: Miguel / Codex Secondary. Human review: Miguel and Elijah.
+Owner: Miguel / Codex Secondary. Human review: Miguel and independent reviewer Jairus (`jairuss0`); Android integration review: Elijah.
 Branch: `feat/overlay-paste`; bootstrap dependency: `02df71a`, draft PR #4.
 Identity remains Akma / `ph.merd.akma`. The supplied phase-two pack is read-only input, not part of this change.
 
 ## Implemented behavior
 
-- Only the existing Activity's non-null, actionless Open intent attaches the window. Close, unexpected actions and null restart intents stop the service. `START_NOT_STICKY` is preserved.
-- Each service instance owns at most one panel and reply-state collector. A stopped instance cannot reopen; partial attachment failures also release resources.
-- Panel Close, notification Close, permission revocation, unexpected window detachment and service destruction use idempotent cleanup. Cleanup unregisters the app's permission watcher, cancels the collector, releases input focus and removes the window and foreground notification. Pending inference is cancelled only when this service owned a panel.
-- The explicit **Paste message** button requests input focus, checks window focus and invokes Android's native paste action only on that click. It is disabled during inference. There are no clipboard listeners or background reads. Copy remains an explicit draft-button action and never sends a message.
-- Close stays outside the scrolling body. Text synchronization runs in guarded `afterTextChanged`, preserving selection when possible. No private input is written to disk; process death loses input and requires another explicit Open.
+- Only the existing Activity's non-null, actionless Open intent starts the assistant. One attached root switches between a nonfocusable 64 dp bubble and a focusable native Views panel. Duplicate Open/expand/collapse requests do not attach duplicate windows.
+- **Close panel** clears the application message, analysis, draft and notices, cancels pending work, hides the keyboard and returns to the bubble. Activity **Close overlay** and notification **Close** stop the entire assistant and clear the same session.
+- Permission revocation, unexpected detachment and service destruction release the owned window and foreground notification. Cleanup unregisters the app's permission watcher and cancels the collector. Null/unknown restart intents stop the service; `START_NOT_STICKY` remains.
+- Clearing uses the existing main-thread `ReplyCoordinator.cancel()` followed by `setMessage("")`. Tests prove that late noncooperative results cannot restore cleared content and that initialized model readiness remains available. No shared coordinator API was changed.
+- **Paste message** requests input focus, checks window focus and invokes Android's native paste action only on that click. No clipboard listeners or background reads exist. Copy remains an explicit draft-button action and never sends a message. Closing clears application state, not the OS clipboard needed for manual chat Paste.
+- Close stays outside the scrolling body. Guarded `afterTextChanged` synchronizes text and preserves selection. Input is not saved or autofilled; process death loses the session and requires explicit Open.
 
-No shared manifest, foreground-service type, notification permission, Gradle, Activity, model or domain contract changes were made. The engine remains unavailable and produces no AI output. A draggable bubble is deferred; this change fixes the existing panel.
+No shared manifest, foreground-service type, notification permission, Gradle, Activity, model or domain contract changes were made. The production engine remains unavailable and produces no AI output. The bubble is stationary; dragging is deferred. The installed application ID remains `ph.merd.akma`; the newer pack's proposed `ph.merd.akmaai` requires the manifest/Gradle owner's coordinated decision and is not silently migrated here.
 
-## Local checks
+## Earlier local checks (pre-bubble APK)
 
 Ubuntu host, installed JDK 17, existing SDK/Gradle pins. Executed in the overlay worktree:
 
@@ -30,7 +31,7 @@ Header gate: **PASS**, exit 0, `BUILD SUCCESSFUL in 2m 17s`. Final gate includin
 
 The lifecycle tests cover explicit/null/Close/unexpected intents, denied permission, repeated Open, repeated Close/destruction, partial attachment failure, revocation and 20 fresh sessions without retained attachments.
 
-## Emulator checks
+## Earlier emulator checks (pre-bubble APK)
 
 Device: `emulator-5554`, `sdk_gphone64_x86_64`, Android API 36. This is **not** the Android 11/Pova 2 acceptance device.
 
@@ -81,15 +82,58 @@ Screenshots use only synthetic input and are kept outside Git under ignored `app
 
 `git diff --check` passed. Active-doc scan for historical branding (excluding preserved reference files and provenance explanation) returned no matches. Only two overlay classes, one scoped test file and this evidence document are staged; no manifest/Gradle/contract changes or binary artifacts.
 
-## Physical acceptance and owners
+## Physical Pova 2 run — 2026-10-09
 
-All physical checks are **NOT RUN**: no physical phone is attached. Pova 2 LE7/API 30 remains the required gate; Infinix Zero 5G/Android 11 and Camon 30/Android 14 remain secondary. Available memory/storage, HiOS/XOS behavior, local runtime compatibility and inference success are unverified.
+Operator: Miguel. Messenger was selected temporarily for testing. The exclusive overlay slot was announced on benchmark PR #11: <https://github.com/merd-labs/akma/pull/11#issuecomment-6081257150>. No active local ADB client/model benchmark was observed before starting. This is a coordination notice, not proof that another host is idle. No model benchmark, OEM-control bypass or unrelated process termination was performed.
 
-Reserve one phone operator. On Pova 2, install the verified debug APK, deny overlay consent in Android settings and confirm Activity fallback; then grant consent and explicitly Open. Use a synthetic Viber/test-chat message, focus the overlay input and tap Paste message. Check keyboard/scrolling and accessible Close, 20 Open/Close cycles, notification Close, permission revocation, screen off/on, rotation and process recreation. Confirm no overlay returns automatically and no private text survives process death. Record expected/observed behavior, device/API, APK SHA and synthetic screenshots.
+The sole authorized non-emulator ADB target was selected explicitly for every command. Its serial is omitted from this report. Verified properties:
 
-After the runtime owner supplies genuine local inference, generate and edit a reply, tap Copy and manually paste into the test chat without sending. Copy-reply UI and airplane-mode inference acceptance are **BLOCKED** by the unavailable production engine; no production fixture is supplied.
+- Manufacturer: `TECNO MOBILE LIMITED`; model: `TECNO LE7`.
+- Android: `11`; API: `30`; ABI: `arm64-v8a`.
+- Display build: `LE7-H697GHIJKL-R-GL-220929V706`; `ro.kernel.qemu` was empty.
+- Available memory/storage and inference compatibility remain unverified. The simultaneously connected API 36 emulator was not used for these observations.
 
-For HiOS/XOS battery restrictions, use only documented user settings and manual restart. Do not whitelist silently, disable OEM controls through ADB, add automatic restart, or request battery exemptions without owner coordination. Any required Activity/manifest/notification change must be a minimal patch request to its sole owner; no such patch is currently established by observed evidence.
+Exact installed debug APK SHA-256: `bb41ae8fe1fde8c3e4deef57832533736a4b1b5fc476dea27912a1f17e5e7570`.
+
+```bash
+JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew --no-daemon --max-workers=2 :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+sha256sum app/build/outputs/apk/debug/app-debug.apk
+# <physical-serial> below means the verified LE7; never omit -s with multiple devices.
+adb -s <physical-serial> shell getprop ro.product.manufacturer
+adb -s <physical-serial> shell getprop ro.product.model
+adb -s <physical-serial> shell getprop ro.build.version.release
+adb -s <physical-serial> shell getprop ro.build.version.sdk
+adb -s <physical-serial> shell getprop ro.product.cpu.abi
+adb -s <physical-serial> shell getprop ro.build.display.id
+adb -s <physical-serial> shell getprop ro.kernel.qemu
+adb -s <physical-serial> install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s <physical-serial> shell am start -a android.settings.action.MANAGE_OVERLAY_PERMISSION -d package:ph.merd.akma
+adb -s <physical-serial> shell cmd appops get ph.merd.akma SYSTEM_ALERT_WINDOW
+adb -s <physical-serial> shell am start -n ph.merd.akma/.MainActivity
+adb -s <physical-serial> shell dumpsys window windows
+adb -s <physical-serial> shell dumpsys input_method
+adb -s <physical-serial> shell input text SyntheticOverlayClearCheck
+```
+
+Build/test/lint: **PASS**, exit 0, `BUILD SUCCESSFUL in 1m 48s`; 51 tasks, 16 executed and 35 up-to-date. **40 unit tests passed**, zero failures/errors: 12 lifecycle, 4 real-coordinator dismissal, 11 coordinator and 13 validation tests. Lint: zero errors, 17 warnings. Test engines are synthetic fixtures only, never a production AI substitute. Install: **PASS**, `Success`.
+
+Miguel manually allowed overlay access in Android settings and confirmed completion. ADB then observed `SYSTEM_ALERT_WINDOW: allow`; no ADB permission grant was used on this phone.
+
+| Scenario | Observed result | Limit |
+|---|---|---|
+| Explicit Open | PASS: one 192×192 px / 64 dp native bubble | Actual LE7/API 30 window metadata and screenshot |
+| Bubble to panel | PASS: same single overlay root becomes focusable panel | Default UIAutomator dump omits nonfocusable bubble; helper taps the observed owned `mFrame` center |
+| Input focus and software keyboard | PASS: input `focused=true`, `mInputShown=true`; typed synthetic fixture visible | Native field tap, not background capture |
+| Close panel / clear session | PASS: panel returns to one nonfocusable bubble; reopening message is empty | Physical message proof; draft and late-result cleanup additionally covered in unit tests |
+| Messenger Copy / explicit Paste | PENDING human confirmation and focused Paste test | Miguel reports Danielle sent a message in group chat and he copied it; synthetic content must be confirmed before capture |
+| Repeated toggles | INCOMPLETE: one panel cycle passed; run stopped on own-Activity foreground guard | Messenger became foreground; no third-party UI dump or screenshot was taken |
+| Notification Close, manual revocation/denial, process recreation | NOT RUN on this physical APK yet | Earlier emulator results do not satisfy this gate |
+| Background / screen off / HiOS restrictions | NOT RUN yet | USB charging prevents an extended battery/Doze acceptance claim |
+| Genuine local reply and manual Copy back to Messenger | BLOCKED | Production `UnavailableReplyEngine`; no fabricated reply or model lock-in |
+
+The host helper reads UI only while Akma's Activity is foreground and stops if another app is resumed. Metadata checks filter Akma's own overlay windows. No clipboard inspection or third-party conversation dump is used. Screenshots are ignored local evidence under `app/build/evidence/pova2/`: `bubble.png`, `panel-reopened-empty.png`. The latter shows empty overlay and Activity inputs after Close. A visible “Grammarly has stopped” toast belongs to another installed app and is not evidence of an Akma crash. No action was taken against that app.
+
+Remaining physical checks require the handset operator. Keep screenshots limited to Akma and synthetic content; do not capture personal notifications. HiOS/XOS investigation must use observed behavior and user controls, without silent whitelisting, ADB battery bypasses or automatic restart. Infinix Zero 5G and Camon 30 are not tested by this run.
 
 ## Platform references
 

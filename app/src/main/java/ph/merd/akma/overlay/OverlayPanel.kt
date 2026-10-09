@@ -69,7 +69,7 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
         orientation = VERTICAL
         setBackgroundColor(Color.WHITE)
         addView(label("Akma").apply { textSize = 20f; setTypeface(null, Typeface.BOLD) })
-        addView(button("Close overlay", close))
+        addView(button("Close panel", close))
         addView(ScrollView(context).apply { addView(content) }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, 1f))
         listOf(status, notice, progress, cancel, check, recover, message, paste, analyze, tone, actions, draft, copy).forEach(content::addView)
         // Limit panel height so Close remains accessible above the keyboard on small screens.

@@ -18,6 +18,9 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
+import android.widget.Button
+import android.widget.FrameLayout
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,15 +30,18 @@ import ph.merd.akma.AkmaApplication
 import ph.merd.akma.MainActivity
 import ph.merd.akma.OverlayStatus
 import ph.merd.akma.R
+import ph.merd.akma.domain.ReplyCoordinator
 
 /** User-started only. No clipboard listener, background restart, or automatic message capture. */
 class OverlayService : Service() {
     private val session get() = application as AkmaApplication
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var windows: WindowManager
-    private var panel: View? = null
+    private var panel: OverlayPanel? = null
+    private var host: FrameLayout? = null
+    private var panelCollector: Job? = null
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val lifecycle = OverlaySession(::attachPanel, ::releasePanel)
+    private val lifecycle = OverlaySession(::attachBubble, ::releaseWindow, ::displayPanel, ::displayBubble, ::clearReplySession)
     private var watchingPermission = false
     private val permissionListener = AppOpsManager.OnOpChangedListener { operation, changedPackage ->
         if (operation == AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW && changedPackage == packageName) {
@@ -70,8 +76,8 @@ class OverlayService : Service() {
             val close = PendingIntent.getService(this, 1, Intent(this, OverlayService::class.java).setAction(ACTION_CLOSE), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             val notification = Notification.Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("Akma overlay is open")
-                .setContentText("User-controlled session. Tap Close to stop.")
+                .setContentTitle("Akma assistant is on")
+                .setContentText("Tap the bubble to paste. Close stops the assistant.")
                 .setContentIntent(open)
                 .setOngoing(true)
                 .addAction(Notification.Action.Builder(null, "Open Akma", open).build())
@@ -89,33 +95,90 @@ class OverlayService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun attachPanel() {
-        val view = OverlayPanel(this, session.replies, ::closeOverlay)
-        // Record ownership before addView so partial attachment failures also get cleaned up.
-        panel = view
-        view.addOnAttachStateChangeListener(attachmentListener)
-        val density = resources.displayMetrics.density
-        val width = minOf((340 * density).toInt(), resources.displayMetrics.widthPixels - (32 * density).toInt())
-        val params = WindowManager.LayoutParams(
-            width.coerceAtLeast(1),
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-            PixelFormat.TRANSLUCENT,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = (48 * density).toInt()
-            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+    private fun attachBubble() {
+        val root = FrameLayout(this).apply {
+            isSaveEnabled = false
+            importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
         }
-        windows.addView(view, params)
+        host = root
+        root.addOnAttachStateChangeListener(attachmentListener)
+        root.addView(bubble())
+        windows.addView(root, bubbleParams())
         getSystemService(AppOpsManager::class.java).startWatchingMode(
             AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, packageName, permissionListener,
         )
         watchingPermission = true
-        // Cover a revocation racing with attachment/watcher registration.
         check(Settings.canDrawOverlays(this))
         session.overlayStatus.value = OverlayStatus(open = true)
-        scope.launch { session.replies.state.collect { view.render(it) } }
+    }
+
+    private fun bubble() = Button(this).apply {
+        text = "Akma"
+        contentDescription = "Open Akma panel"
+        setOnClickListener {
+            try { lifecycle.expand() }
+            catch (_: RuntimeException) { fail("Panel unavailable. Continue in the Activity.") }
+        }
+    }
+
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+    private fun bubbleParams() = WindowManager.LayoutParams(
+        dp(64), dp(64), WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+        PixelFormat.TRANSLUCENT,
+    ).apply {
+        gravity = Gravity.END or Gravity.CENTER_VERTICAL
+        x = dp(12)
+    }
+
+    private fun panelParams() = WindowManager.LayoutParams(
+        minOf(dp(340), resources.displayMetrics.widthPixels - dp(32)).coerceAtLeast(1),
+        WindowManager.LayoutParams.WRAP_CONTENT,
+        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+        PixelFormat.TRANSLUCENT,
+    ).apply {
+        gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        y = dp(48)
+        softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+    }
+
+    private fun displayPanel() {
+        check(Settings.canDrawOverlays(this))
+        val root = checkNotNull(host)
+        val view = OverlayPanel(this, session.replies) {
+            try { lifecycle.collapse() }
+            catch (_: RuntimeException) { fail("Panel unavailable. Continue in the Activity.") }
+        }
+        panel = view
+        root.removeAllViews()
+        root.addView(view)
+        windows.updateViewLayout(root, panelParams())
+        panelCollector = scope.launch { session.replies.state.collect { view.render(it) } }
+    }
+
+    private fun displayBubble() {
+        val root = checkNotNull(host)
+        panelCollector?.cancel()
+        panelCollector = null
+        hideKeyboard(root)
+        panel = null
+        root.removeAllViews()
+        root.addView(bubble())
+        windows.updateViewLayout(root, bubbleParams())
+    }
+
+    /** Both existing APIs are main-thread operations; cancel invalidates pending results first. */
+    private fun clearReplySession() {
+        clearOverlayReplySession(session.replies)
+    }
+
+    private fun hideKeyboard(view: View) {
+        try {
+            getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(view.windowToken, 0)
+            view.clearFocus()
+        } catch (_: RuntimeException) { /* Input window may already be gone. */ }
     }
 
     private fun fail(message: String) {
@@ -128,7 +191,7 @@ class OverlayService : Service() {
         stopSelf()
     }
 
-    private fun releasePanel() {
+    private fun releaseWindow() {
         mainHandler.removeCallbacksAndMessages(null)
         if (watchingPermission) {
             watchingPermission = false
@@ -136,17 +199,16 @@ class OverlayService : Service() {
             catch (_: RuntimeException) { /* Android may already have removed the watcher. */ }
         }
         scope.cancel()
-        val view = panel
+        panelCollector = null
         panel = null
+        val view = host
+        host = null
         view?.let {
+            clearReplySession()
             it.removeOnAttachStateChangeListener(attachmentListener)
-            try {
-                getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(it.windowToken, 0)
-                it.clearFocus()
-            } catch (_: RuntimeException) { /* Input window may already be gone. */ }
+            hideKeyboard(it)
             try { windows.removeViewImmediate(it) }
             catch (_: RuntimeException) { /* Already detached, or addView failed. */ }
-            session.replies.cancel()
         }
         session.overlayStatus.value = session.overlayStatus.value.copy(open = false)
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -170,10 +232,18 @@ class OverlayService : Service() {
 internal fun isOverlayShowRequest(hasIntent: Boolean, action: String?): Boolean = hasIntent && action == null
 
 /** Main-thread ownership gate: a stopped service instance can never reopen its window. */
-internal class OverlaySession(private val attach: () -> Unit, private val release: () -> Unit) {
+internal class OverlaySession(
+    private val attach: () -> Unit,
+    private val release: () -> Unit,
+    private val displayPanel: () -> Unit = {},
+    private val displayBubble: () -> Unit = {},
+    private val clearPanel: () -> Unit = {},
+) {
     var closed = false
         private set
     private var attached = false
+    var expanded = false
+        private set
 
     fun show(permissionGranted: Boolean): Boolean {
         if (closed) return false
@@ -193,9 +263,39 @@ internal class OverlaySession(private val attach: () -> Unit, private val releas
         return true
     }
 
+    fun expand() {
+        if (closed || !attached || expanded) return
+        try {
+            displayPanel()
+            expanded = true
+        } catch (exception: RuntimeException) {
+            close()
+            throw exception
+        }
+    }
+
+    fun collapse() {
+        if (closed || !expanded) return
+        try {
+            clearPanel()
+            displayBubble()
+            expanded = false
+        } catch (exception: RuntimeException) {
+            close()
+            throw exception
+        }
+    }
+
     fun close() {
         if (closed) return
         closed = true
+        expanded = false
         release()
     }
+}
+
+/** Clearing after cancellation also resets analysis/draft and preserves initialized readiness. */
+internal fun clearOverlayReplySession(replies: ReplyCoordinator) {
+    replies.cancel()
+    replies.setMessage("")
 }
