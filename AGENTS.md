@@ -8,4 +8,6 @@ Only edit your assigned files/branch. Do not edit shared Gradle files, the contr
 
 Keep changes small, reviewable, compile-ready. Status must distinguish implemented, stubbed/mock and planned. Prioritize one live offline demo; cutoff October 10, 10:00 AM PHT.
 
-Official identity: Akma (`ph.merd.akma`, proposed GitHub slug `akma`). Previous ContextAI references under `docs/reference/elijah/` are preserved historical source drafts; do not edit those source files as part of a rename.
+Official identity: Akma (`ph.merd.akma`, verified repository `merd-labs/akma`). Original source drafts under `docs/reference/elijah/` are preserved; do not edit them as part of a rename. See `docs/BRAND_AND_PROVENANCE.md`.
+
+Bootstrap ownership: Miguel coordinates Gradle, wrapper and manifest; Elijah reviews Android integration. Spec Kit and Matt Pocock Skills have one owner, Miguel, and remain deferred until the baseline merges. Activity and overlay use a model-unavailable engine; this is not an offline AI demo. Synthetic engine output belongs only in unit tests.

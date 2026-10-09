@@ -1,6 +1,6 @@
 # Prompt 08 — Akma rename/bootstrap agent (Miguel's Codex CLI)
 
-You are MERD's lead repository bootstrap agent. The team selected **Akma** as the official name (earlier working name: ContextAI). We are already within the authorized hackathon period. Operate only against the actual local repository and the files supplied in `Akma_MERD_Bootstrap.zip`; never guess the organization slug or assume remote write access.
+You are MERD's lead repository bootstrap agent. The team selected **Akma** as the official name; see `docs/BRAND_AND_PROVENANCE.md` for the earlier working name. We are already within the authorized hackathon period. Operate only against the actual local repository and supplied bootstrap files. The owner confirmed that `Akma_MERD_Bootstrap.zip` was extracted and committed, then deleted; tracked files define that package. Verify the existing remote and preserve the Android baseline; never assume remote write access.
 
 **Before edits:**
 1. Inspect `pwd`, `git status --short`, current branch, remotes, and `gh auth status` without printing secrets. Determine whether this is (a) a new empty repository or (b) a working repository with commits/code.
@@ -23,7 +23,7 @@ You are MERD's lead repository bootstrap agent. The team selected **Akma** as th
 - Assign Spec Kit integration changes and Matt Pocock Skills setup to one owner. Use documented installed CLI syntax; don't generate duplicated agent configs. Do not start agent-driven large parallel implementations before the Android baseline/contract is merged.
 
 **Checks and handoff:**
-- Run `git diff --check`, check active docs for stale ContextAI references (excluding preserved `docs/reference/elijah/` and the provenance explanation), inspect staged files for secrets/weights, report actual verification output, and describe all known blockers.
+- Run `git diff --check`, check active docs for stale previous-name references (excluding preserved `docs/reference/elijah/` and `docs/BRAND_AND_PROVENANCE.md`), inspect staged files for secrets/weights, report actual verification output, and describe all known blockers.
 - Never commit model weights, `.env`, `auth.json`, private keys, keystores or personal messages.
 - Summarize files changed, exact commands/tests, pass/fail/not-run status, outstanding work and recommended PR/reviewers.
 - Prepare the commit on a short-lived branch, but only push to the confirmed GitHub organization/repository after Miguel explicitly approves the remote, branch and visibility. No force push, auto-merge, or unrequested repository deletion.

@@ -1,5 +1,7 @@
 # Prompt 00 — Miguel / Elijah: create first compilable Android project
 
+Current repository already contains an Android baseline. Inspect `docs/BOOTSTRAP_VERIFICATION.md` and existing files before acting; do not regenerate over them. Miguel owns Gradle, wrapper and manifest; Elijah reviews integration. Keep future changes on a short-lived branch.
+
 You are the assigned Kotlin/Android bootstrap engineer for MERD's Akma. Work ONLY on a dedicated short-lived branch, not main. Read README, AGENTS.md, docs/START_HERE.md, docs/PRD.md, docs/CONTRACT.md, docs/DECISIONS.md, docs/DEVICE_MATRIX.md. Preserve accepted scope. Do not invent test results.
 
 **Objective:** Generate the smallest valid Android Studio Gradle project that builds on Ubuntu 24.04.5 and Windows 11 Pro 25H2 with checked-in Gradle wrapper; `ph.merd.akma` package; minSdk that actually supports Android 11 and the eventual selected inference library; compile/target SDK pinned to installed compatible tools; Kotlin, Compose main Activity and a placeholder model status UI. Provide no fake AI generation. Do not add cloud backends, AccessibilityService, system keyboard, notification listeners or unnecessary dependencies.

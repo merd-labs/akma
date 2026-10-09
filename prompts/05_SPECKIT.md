@@ -1,5 +1,7 @@
 # Prompt 05 — Lead agent: minimal Spec Kit & skills setup (timebox 15–25m)
 
+Owner: Miguel. Run only after the Android baseline and contract merge. Specify 1.1.1 is installed on the audited Ubuntu host; initialization has not run. Use `--non-interactive` for agent execution if supported, inspect help and review output. Do not duplicate another agent's integrations or install tooling merely to build the app.
+
 Read AGENTS, PRD, CONTRACT, DECISIONS and SPRINT first. This is an active hackathon; do not re-scope the already-approved MVP. Ensure repo is committed/backed up before any `--force` operation. Check `specify --help` and official installed version. Install/init Spec Kit **once** with correct agent integration and cross-platform script option; inspect diff and keep only relevant generated files. Do not overwrite MERD-approved documentation.
 
 Use Spec Kit to record a short constitution (offline/local inference, truthful demo, Android baseline, security, owner-reviewed PRs), one product spec referencing PRD, and a task checklist. Stop if setup consumes >25 minutes or creates duplicate task systems. Do not run `/speckit.implement` globally; implementation belongs to human-owned worktrees.

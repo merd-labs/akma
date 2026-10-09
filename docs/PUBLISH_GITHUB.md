@@ -1,62 +1,34 @@
-# Publish Akma — reviewed operator workflow
+# Publish Akma — existing repository, explicit approval
 
-**Organization slug is NOT known to this package.** The ZIP contains repository files; it does not create a remote repository or validate access. Do not publish into another organization or overwrite an existing working repository. A verified GitHub CLI login is required.
+Read-only inspection verified the existing repository as **`merd-labs/akma`**, public, with default branch `main` and origin `https://github.com/merd-labs/akma.git`. GitHub CLI authentication succeeds. This does not establish remote write authorization or permission to change visibility.
 
-## Option A — brand-new repository (Ubuntu / Bash)
+The owner confirmed that the supplied ZIP was extracted, committed and deleted. Preserve existing history and historical source drafts. Do not run `git init`, `gh repo create`, remote rename, blind archive overwrite or force push in this repository.
+
+## Review before pushing
+
+The bootstrap branch is `chore/akma-bootstrap`. Miguel owns Gradle, wrapper and manifest; Elijah reviews Android integration. Build and review locally first:
 
 ```bash
-ORG='REPLACE_WITH_ACTUAL_ORG_SLUG'
-mkdir -p "$HOME/projects/akma"
-cd "$HOME/projects/akma"
-# Extract the contents of Akma_MERD_Bootstrap.zip into this directory (no parent nesting).
-# Before any Git operation, check files and identities:
-git status --short 2>/dev/null || true
-gh auth status
-gh repo view "$ORG/akma"  # Should report NOT FOUND for a genuinely new repository.
-# Only after verifying the repo does NOT already exist:
-git init -b main
-git add .
-git diff --cached --stat
-git diff --cached --check
 git status --short
-git commit -m 'chore: bootstrap Akma hackathon project'
-gh repo create "$ORG/akma" --private --source=. --remote=origin --push
-```
-
-## Option B — repository already exists
-
-Do NOT run `gh repo create`, `git init`, a force push, or blind `unzip -o` into it. Clone it normally if needed, make a short-lived branch named `chore/akma-bootstrap`, compare existing tracked files against the provided package, and migrate with review. Preserve any code already produced by registered MERD members during the competition, Git history, dependencies, config and licenses. Prompt: `prompts/08_AKMA_REPO_MIGRATION.md`.
-
-```bash
-ORG='REPLACE_WITH_ACTUAL_ORG_SLUG'
-gh repo view "$ORG/akma" --json name,url,visibility
-# If the remote uses another name (e.g. old working-name repo), do not rename it blindly.
-# Instead confirm migration/rename with Miguel and update only approved metadata.
-```
-
-## Windows 11 PowerShell
-
-Use Git Bash to execute Option A or use equivalent PowerShell commands. After extracting into a NEW empty directory:
-
-```powershell
-$Org = 'REPLACE_WITH_ACTUAL_ORG_SLUG'
-gh auth status
-gh repo view "$Org/akma"    # Expect not found ONLY if creating new repo
-# After reviewing the extracted content and confirming no preexisting repository:
-git init -b main
-git add .
-git diff --cached --stat
-git diff --cached --check
-git commit -m 'chore: bootstrap Akma hackathon project'
-gh repo create "$Org/akma" --private --source . --remote origin --push
-```
-
-## Required verification
-
-```bash
 git remote -v
-git status --short
-gh repo view "$ORG/akma" --json name,visibility,url
+gh repo view merd-labs/akma --json nameWithOwner,url,visibility,defaultBranchRef
+git diff --check
+git diff --cached --check
+git diff --cached --stat
 ```
 
-Private initially is optional; **public GitHub repository is mandatory before the October 10, 10:00 AM PHT cutoff**. After a secret/privacy review, the owner may intentionally change visibility in the GitHub UI and confirm it with `gh repo view`. Do not change visibility automatically. Check working demo/video/social post and AI disclosures before final submission.
+Inspect staged content for secrets, private keys, credentials, model weights, keystores and personal messages. Review `docs/BOOTSTRAP_VERIFICATION.md` for actual build/test results. No APK or model weights belong in Git.
+
+## Approval gate
+
+Only push after Miguel explicitly approves all three: repository **`merd-labs/akma`**, branch **`chore/akma-bootstrap`**, and existing **public visibility**. Authentication, a confirmed URL or implementation approval is not push approval.
+
+After that approval, the operator may run:
+
+```bash
+git push -u origin chore/akma-bootstrap
+```
+
+PowerShell uses the same Git/GitHub CLI commands. Prepare a PR titled **Bootstrap Akma Android baseline**, with actual verification, placeholders and blockers. Request Elijah's Android integration review and Miguel's shared configuration review. Do not auto-merge or change repository visibility.
+
+Public repository availability alone does not satisfy submission. Verify the actual offline demo, video, model/library licensing and AI disclosure before the October 10, 10:00 AM PHT cutoff.

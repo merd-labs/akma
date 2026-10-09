@@ -1,9 +1,9 @@
 # Brand decision and source provenance
 
-**Official competition project name:** Akma  
-**Developer/team:** MERD  
-**Repository slug (recommended):** `akma`  
-**Android application ID/namespace (approved proposal):** `ph.merd.akma`  
+**Official competition project name:** Akma
+**Developer/team:** MERD
+**Repository (verified public):** `merd-labs/akma`
+**Android application ID/namespace:** `ph.merd.akma`
 **Tagline:** The right words, for the right context.
 
 This supersedes the earlier **ContextAI** working name throughout the active specifications and engineering instructions. Do not rename classes such as `LocalReplyEngine` merely for branding; they define implementation behavior, not marketing identity. Do not manufacture screenshots or test results; earlier mockups containing ContextAI are exploratory design artifacts, not deployed software.
@@ -12,4 +12,4 @@ This supersedes the earlier **ContextAI** working name throughout the active spe
 
 On publishing: confirm that the repository slug exists/is available, and validate eventual application-name and trademark conflicts before public distribution. The hackathon name alone is not a trademark or availability clearance.
 
-Package remains docs-only until a registered MERD engineer or supervised AI agent generates the Android Studio project and verifies it. No local model has been tested by this bootstrap.
+The owner confirmed that the ZIP was already extracted and committed, then deleted. The Android baseline contains a Compose Activity, Views overlay panel, unchanged domain contract and a model-unavailable engine; see `BOOTSTRAP_VERIFICATION.md` for actual results. The owner approved integration of concurrent Android changes during bootstrap. No local model has been tested. Historical source files remain unchanged.

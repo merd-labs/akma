@@ -5,8 +5,16 @@ on:
 permissions:
   contents: read
 jobs:
+  documentation:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Whitespace check
+        run: git diff --check HEAD^1 HEAD
   android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Java 17
@@ -14,16 +22,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Project status and basic checks
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+      - name: Build and unit tests
         shell: bash
         run: |
-          if [[ ! -f gradlew ]]; then
-            echo '::notice::Documentation bootstrap only: Android/Gradle project has not been generated yet.'
-            exit 0
-          fi
-          if [[ ! -f gradle/wrapper/gradle-wrapper.jar || ! -f gradle/wrapper/gradle-wrapper.properties ]]; then
-            echo '::error::Gradle wrapper is incomplete.'
+          if [[ ! -x gradlew || ! -f gradle/wrapper/gradle-wrapper.jar || ! -f gradle/wrapper/gradle-wrapper.properties || ! -f app/build.gradle.kts ]]; then
+            echo '::error::Android baseline or Gradle wrapper is incomplete.'
             exit 1
           fi
-          chmod +x gradlew
-          ./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest
+          ./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
