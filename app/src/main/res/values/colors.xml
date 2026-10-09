@@ -18,6 +18,8 @@
     <color name="akma_bg_brand_subtle">#FFFAF5FF</color>
     <color name="akma_bg_brand_muted">#FFF3E8FF</color>
     <color name="akma_bg_success">#FF15803D</color>
+    <color name="akma_bg_success_subtle">#FFDCFCE7</color>
+    <color name="akma_text_success">#FF15803D</color>
     <color name="akma_bg_scrim">#8017121F</color>
     <color name="akma_border_default">#FFE4E0EA</color>
     <color name="akma_border_strong">#FFCBC5D4</color>

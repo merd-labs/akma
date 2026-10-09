@@ -18,6 +18,8 @@ object AkmaTokens {
     const val BG_BRAND_SUBTLE = 0xFFFAF5FFL
     const val BG_BRAND_MUTED = 0xFFF3E8FFL
     const val BG_SUCCESS = 0xFF15803DL
+    const val BG_SUCCESS_SUBTLE = 0xFFDCFCE7L
+    const val TEXT_SUCCESS = 0xFF15803DL
     const val BG_SCRIM = 0x8017121FL
     const val BORDER_DEFAULT = 0xFFE4E0EAL
     const val BORDER_STRONG = 0xFFCBC5D4L
@@ -37,6 +39,8 @@ object AkmaTokens {
         "akma_bg_brand_subtle" to BG_BRAND_SUBTLE,
         "akma_bg_brand_muted" to BG_BRAND_MUTED,
         "akma_bg_success" to BG_SUCCESS,
+        "akma_bg_success_subtle" to BG_SUCCESS_SUBTLE,
+        "akma_text_success" to TEXT_SUCCESS,
         "akma_bg_scrim" to BG_SCRIM,
         "akma_border_default" to BORDER_DEFAULT,
         "akma_border_strong" to BORDER_STRONG,

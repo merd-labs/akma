@@ -13,6 +13,8 @@ import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.SamplerConfig
 import java.io.File
+import java.util.Locale
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
@@ -64,9 +66,7 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
         val input = org.json.JSONObject().put("incoming_message", safe.message)
             .put("previous_context", safe.history).put("relationship", safe.relationship).toString()
         val raw = generate(prompt("analyze_v2.txt"), input, 192)
-        val json = org.json.JSONObject(raw.trim())
-        require(raw.trim().startsWith("{") && raw.trim().endsWith("}")) { "Malformed analysis." }
-        val purpose = json.getString("message_purpose")
+        val purpose = LocalModelOutput.purpose(raw)
         val category = categoryFor(request.message)
         val actions = ActionCatalog.actionsFor(category).take(ReplyValidation.MAX_ACTIONS)
         AnalysisResult(category, "Untrusted model summary: $purpose", true, actions, AnalysisSource.DETERMINISTIC)
@@ -83,7 +83,7 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
             .put("relationship", safe.original.relationship)
             .put("selected_action_id", request.selectedActionId)
             .put("selected_intention", selected.label)
-            .put("tone", request.tone.name.lowercase())
+            .put("tone", request.tone.name.lowercase(Locale.ROOT))
             .put("user_instructions", safe.userInstruction).toString()
         val actionRule = when (request.selectedActionId) {
             "reschedule" -> "The user selected RESCHEDULE. Ask the sender for a different interview time. Do not say you are available Friday at 10 or accept that time."
@@ -91,11 +91,8 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
             "decline" -> "The user selected DECLINE. Politely decline without an invented excuse."
             else -> "Follow the selected action exactly."
         }
-        val raw = generate(prompt("generate_v2.txt") + "\n" + actionRule, input, 128).trim()
-        val draft = if (raw.startsWith("{") && raw.endsWith("}")) {
-            org.json.JSONObject(raw).getString("reply").trim()
-        } else raw
-        require(!draft.startsWith("{") && !draft.endsWith("}")) { "Malformed draft." }
+        val raw = generate(prompt("generate_v2.txt") + "\n" + actionRule, input, 128)
+        val draft = LocalModelOutput.draft(raw)
         if (request.selectedActionId == "reschedule") {
             require(!Regex("(?i)\\b(i(?:'m| am)|we(?:'re| are))\\s+(?:available|free)\\b").containsMatchIn(draft)) {
                 "Draft contradicts reschedule action."
@@ -108,7 +105,7 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
         .bufferedReader(Charsets.UTF_8).use { it.readText() }
 
     private fun categoryFor(message: String): String {
-        val text = message.lowercase()
+        val text = message.lowercase(Locale.ROOT)
         return when {
             "interview" in text -> "interview_invitation"
             "reschedul" in text || "move our meeting" in text -> "reschedule_request"
@@ -122,6 +119,7 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
     private suspend fun generate(instruction: String, input: String, maxTokens: Int): String {
         val active = runtime.current ?: throw ModelUnavailableException()
         val started = SystemClock.elapsedRealtime()
+        val firstTextMillis = AtomicLong(-1)
         val config = ConversationConfig(
             systemInstruction = Contents.of(instruction),
             samplerConfig = SamplerConfig(topK = 1, topP = 1.0, temperature = 0.0, seed = 42),
@@ -137,14 +135,23 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
             return operation.await(
                 start = { callbacks ->
                     conversation.sendMessageAsync(input, object : MessageCallback {
-                        override fun onMessage(message: Message) = callbacks.onText(message.toString())
+                        override fun onMessage(message: Message) {
+                            try {
+                                val text = message.toString()
+                                if (text.isNotEmpty()) firstTextMillis.compareAndSet(-1, SystemClock.elapsedRealtime() - started)
+                                callbacks.onText(text)
+                            } catch (failure: Throwable) {
+                                // Transfer the original failure to the coroutine owner; this is not a terminal event.
+                                callbacks.onFailure(failure)
+                            }
+                        }
                         override fun onDone() = callbacks.onComplete()
                         override fun onError(throwable: Throwable) = callbacks.onComplete(throwable)
                     })
                 },
                 cancel = { conversation.cancelProcess() },
             ).also {
-                Log.i(TAG, "generation_ms=${SystemClock.elapsedRealtime() - started} chars=${it.length}")
+                Log.i(TAG, "generation_ms=${SystemClock.elapsedRealtime() - started} first_text_ms=${firstTextMillis.get()} chars=${it.length}")
             }
         } catch (failure: Throwable) {
             // Preserve cancellation and every original failure; classification happens in guarded/the coordinator.

@@ -188,3 +188,92 @@ runs; report their actual outcome separately rather than borrowing the source-he
 
 Physical model suitability and final recovery acceptance, current-head hosted CI and production
 distribution signing remain open. Source compilation or successful model packaging alone is not a release PASS.
+
+## Final runtime and live UI reconciliation
+
+Primary fetched live state on October 10 before editing. PR27 was `1c8e1d1`, main
+`b31a6f0`, PR29 `864d938b933d8900ecf21de5c5c30a5eebf44c72`, PR30 `ef1d213`,
+and the newly published live UI PR31 `224caa2`. PR31 includes both PR27 and PR30;
+its design kit must not be reapplied. PR28 is already an ancestor through `9157656`.
+Source ownership was coordinated on PR29 and PR31 before production edits.
+
+The PR29 merge had one actual Kotlin conflict, `LiteRtReplyEngine.kt`. Resolution:
+
+- Keep PR27's `RuntimeRecovery`, `NativeHandleSlot`, bounded terminal wait, uncertain-handle
+  quarantine, restart notice, receipt invalidation and typed provisioning failures.
+- Port callback conversion failure handling, early oversized-output cancellation and
+  first-text callback timing through the existing native operation. Cancellation runs on
+  the owning coroutine; a callback conversion failure is never treated as native completion.
+- Keep the approved shared contract and deterministic category selection from copied input.
+  Exclude PR29's HYBRID enum/validation/test changes because model purpose must not redefine
+  the domain category. Existing assertions are retained; no failing test is disabled.
+- Use one strict Gson 2.14.0 streaming parser for model output. Require string fields and
+  complete JSON documents; reject duplicate expected fields and malformed output. Preserve
+  the validated plain-text draft fallback, output sanitization, canonical actions and
+  immutable two-step confirmation. The competing PR20 pipeline remains excluded.
+- Retain PR29's historical Camon evidence with its stated failures and artifact identity.
+  Retain its Windows build helper, but refuse to overwrite an existing mismatched model asset.
+
+The new early-overflow regressions first reproduced two failures in the original bridge:
+12 focused tests, two failures, exit 1, `BUILD FAILED in 4m 39s`. The first revised compile
+also failed on Kotlin generic inference in `select`; the result type was made explicit.
+These failures remain recorded rather than omitted from the final result.
+
+The official final-device gate is now Rhence's owner-reported Infinix X6815B, Android 11/API30;
+identity and hardware still require observation in his exclusive slot. English offline
+fidelity is required; Taglish is optional and must not be promised without evidence.
+Quaternary released the Pova slot. His older frozen release `3e9fe186...` completed English
+Reschedule/Professional with human fidelity PASS, but Filipino fidelity FAIL. Those results
+cannot establish acceptance for a new source, APK or Infinix device.
+
+Miguel selected the existing Android development signing key for the demo. A non-debuggable
+release variant signed with that key is development-signed, not a production distribution
+identity. New artifacts require new hashes and matching physical acceptance; previous frozen
+artifacts remain intact. Full combined gates, hosted CI and final team approval are pending
+until the actual results below are recorded.
+
+Focused reconciliation gate: `:app:testDebugUnitTest --tests ph.merd.akma.domain.NativeReplyOperationTest --tests ph.merd.akma.domain.LocalModelOutputTest` PASS, exit 0; 21 tests, zero failures/errors/skips. Staged redacted Gitleaks scan, whitespace, actionlint and PowerShell syntax PASS. JDK17 standalone artifact verifier fixtures PASS (13 cases), not inference proof.
+
+### Combined source checkpoint and observed gate
+
+Local combined source `47d9c07bf81830e5ac4618ded295ec87195be69b` contains PR29's selected
+changes through semantic merge `46082ea`, PR31 visual/runtime-compatible source
+`01c226a4bee49ee424d0ebef974a692581f580ab` through `47de7b1`, and PR32 test source
+`520762775d0f72ddca20928019bbbab2f307cd41` through `47d9c07`. PR31's later launcher-icon
+and draggable-bubble commits were not silently adopted during the gate. No component
+source was personally edited by Primary.
+
+```sh
+./gradlew --no-daemon --max-workers=2 \
+  -Pkotlin.compiler.execution.strategy=in-process -Pkotlin.incremental=false \
+  :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest \
+  :app:testReleaseUnitTest :app:lintDebug :app:lintRelease --console=plain
+```
+
+With JDK17 and Android SDK selected, observed exit 0, `BUILD SUCCESSFUL in 17m 47s`,
+107 tasks. Debug and release each ran 327 tests across 32 suites: zero failures, errors
+or skipped tests. Each lint report has zero errors and 16 warnings. Both actual merged
+manifest guards PASS. This gate included the real ignored model asset; hosted builds
+still contain no weights. It does not prove generation on Rhence's Infinix.
+
+Debug APK artifact verification PASS: exact model size/header/SHA and ARM64 ELF,
+1,679,726,759 bytes, whole-APK SHA-256
+`e7416d6958fe394fb954493e4d4cb7594bd4445828fd0dcb0e50c6f94b283399`.
+JDK17 apksigner verification PASS; development certificate SHA-256
+`a7cabcfe6ca089204bed0b79e2ac0be6e2d98e3eb337ea11f9c043342cd55cff`.
+This debug artifact is a checkpoint, not the non-debuggable final demo APK.
+Committed-range redacted Gitleaks PASS: 27 commits, no leaks. Approved contract,
+coordinator, wrapper and archived Elijah drafts match the previous PR27 head.
+
+The branch is published for owner coordination while explicitly BLOCKED on a real
+whitespace defect: `OnboardingScreens.kt:290`, extra EOF blank line. PR31 hosted run
+37992678139 logs show the check exiting 2. Danielle owns the component; Primary requested
+its correction and separately requested authority for only the prepared one-line cleanup.
+No failing check is bypassed, no main merge is performed, and this published checkpoint
+must not be called green or release-approved. The owner platform bridge and Activity
+Close/session wiring remain integration dependencies.
+
+PR33 `e934934` is excluded: its opening-brace extraction causes normal JSON to select an
+empty object, then reports fabricated default Other/summary as LOCAL_MODEL. Its analysis
+prompt keys also conflict with the retained protocol. The integrated parser fails visibly;
+model-purpose/category changes require coordination rather than another success fallback.
