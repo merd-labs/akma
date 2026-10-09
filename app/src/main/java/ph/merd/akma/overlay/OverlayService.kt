@@ -30,9 +30,11 @@ import android.widget.ImageView
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import android.widget.FrameLayout
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
@@ -56,6 +58,7 @@ class OverlayService : Service() {
     private lateinit var windows: WindowManager
     private var panel: ComposeView? = null
     private var composeHost: OverlayComposeHost? = null
+    private var panelMaxHeight by mutableIntStateOf(1)
     private var host: FrameLayout? = null
     private var panelCollector: Job? = null
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -131,6 +134,11 @@ class OverlayService : Service() {
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
         }
         host = root
+        root.setOnApplyWindowInsetsListener { _, insets ->
+            val safe = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout() or WindowInsets.Type.ime())
+            panelMaxHeight = overlayPanelMaxHeight(windows.maximumWindowMetrics.bounds.height(), safe.top, safe.bottom)
+            insets
+        }
         root.addOnAttachStateChangeListener(attachmentListener)
         root.addView(bubble())
         windows.addView(root, bubbleParams())
@@ -273,6 +281,9 @@ class OverlayService : Service() {
         bubbleAnimator?.cancel()
         check(Settings.canDrawOverlays(this))
         val root = checkNotNull(host)
+        val metrics = windows.maximumWindowMetrics
+        val safe = metrics.windowInsets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout() or WindowInsets.Type.ime())
+        panelMaxHeight = overlayPanelMaxHeight(metrics.bounds.height(), safe.top, safe.bottom)
         // The same Compose journey as the Activity (Figma 27:1807 / 27:1966), hosted in the overlay window.
         val owner = OverlayComposeHost().also { it.attachTo(root) }
         composeHost = owner
@@ -280,7 +291,7 @@ class OverlayService : Service() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
             setContent {
                 AkmaTheme {
-                    val maxHeight = (LocalConfiguration.current.screenHeightDp * PANEL_MAX_HEIGHT).dp
+                    val maxHeight = with(LocalDensity.current) { panelMaxHeight.toDp() }
                     LiveJourneyPanel(
                         replies = session.replies,
                         demo = session.demoMode,
@@ -300,6 +311,7 @@ class OverlayService : Service() {
         root.removeAllViews()
         root.addView(view)
         windows.updateViewLayout(root, panelParams())
+        root.requestApplyInsets()
     }
 
     private fun displayBubble() {
@@ -357,8 +369,9 @@ class OverlayService : Service() {
         panel = null
         val view = host
         host = null
+        // Explicit Close also clears work when Android never attached (or already removed) the window.
+        clearReplySession()
         view?.let {
-            clearReplySession()
             it.removeOnAttachStateChangeListener(attachmentListener)
             hideKeyboard(it)
             try { windows.removeViewImmediate(it) }
@@ -379,8 +392,6 @@ class OverlayService : Service() {
         private const val CHANNEL = "akma_overlay"
         private const val NOTIFICATION_ID = 1
         private const val ACTION_CLOSE = "ph.merd.akma.CLOSE_OVERLAY"
-        // Figma panel top sits just below the status bar (y 36 of 800).
-        private const val PANEL_MAX_HEIGHT = 0.92f
     }
 }
 

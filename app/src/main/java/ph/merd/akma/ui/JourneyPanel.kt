@@ -72,6 +72,7 @@ fun JourneyPanel(
     copyButton: (@Composable (CopyUi) -> Unit)? = null,
     footer: @Composable ColumnScope.() -> Unit = {},
     imePadding: Boolean = true,
+    inputModifier: Modifier = Modifier,
     confirmButton: @Composable (ConfirmationUi) -> Unit,
 ) {
     AkmaPanel(
@@ -108,7 +109,7 @@ fun JourneyPanel(
         // Status cards show the notice under their explanation; other states show it here.
         if (ui.status == null || ui.status == PanelStatus.LoadingModel) ui.notice?.let { NoteRow(R.drawable.ic_akma_message, it) }
         ui.input?.let { input ->
-            MessageInputCard(input.message, input.maxLength, callbacks.onMessageChange, callbacks.onPaste)
+            MessageInputCard(input.message, input.maxLength, callbacks.onMessageChange, callbacks.onPaste, inputModifier = inputModifier)
             if (ui.status == null) {
                 AkmaButton(stringResource(R.string.akma_analyze), callbacks.onAnalyze, enabled = input.canAnalyze)
             }

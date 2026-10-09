@@ -184,6 +184,7 @@ fun MessageInputCard(
     onPaste: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    inputModifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(AkmaRadius.md)
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(AkmaSpacing.xs)) {
@@ -197,7 +198,7 @@ fun MessageInputCard(
             enabled = enabled,
             textStyle = AkmaTheme.type.bodyL.copy(color = AkmaTheme.colors.textPrimary),
             cursorBrush = SolidColor(AkmaTheme.colors.bgBrandStrong),
-            modifier = Modifier
+            modifier = inputModifier
                 .fillMaxWidth()
                 .heightIn(min = 96.dp)
                 .clip(shape)
