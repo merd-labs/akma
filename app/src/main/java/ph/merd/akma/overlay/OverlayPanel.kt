@@ -6,6 +6,7 @@ import android.graphics.Typeface
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -42,6 +43,14 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
             notice.text = "Tap the message field, then Paste message."
         } else {
             try {
+                // Focus alone does not display the IME when a button initiated Paste.
+                // This explicit user action requests normal IME display, never forced display.
+                message.post {
+                    if (message.isAttachedToWindow && message.hasWindowFocus()) {
+                        context.getSystemService(InputMethodManager::class.java)
+                            .showSoftInput(message, InputMethodManager.SHOW_IMPLICIT)
+                    }
+                }
                 if (!message.onTextContextMenuItem(android.R.id.paste)) {
                     notice.text = "Paste unavailable. Copy text and retry, or use the Activity."
                 }

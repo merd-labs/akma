@@ -132,9 +132,10 @@ Miguel manually allowed overlay access in Android settings and confirmed complet
 | Bubble to panel | PASS: same single overlay root becomes focusable panel | Default UIAutomator dump omits nonfocusable bubble; helper taps the observed owned `mFrame` center |
 | Input focus and software keyboard | PASS: input `focused=true`, `mInputShown=true`; typed synthetic fixture visible | Native field tap, not background capture |
 | Close panel / clear session | PASS: panel returns to one nonfocusable bubble; reopening message is empty | Physical message proof; draft and late-result cleanup additionally covered in unit tests |
-| Messenger Copy / explicit Paste | PENDING human confirmation and focused Paste test | Miguel reports Danielle sent a message in group chat and he copied it; synthetic content must be confirmed before capture |
-| Repeated toggles | INCOMPLETE: one panel cycle passed; run stopped on own-Activity foreground guard | Messenger became foreground; no third-party UI dump or screenshot was taken |
-| Notification Close, manual revocation/denial, process recreation | NOT RUN on this physical APK yet | Earlier emulator results do not satisfy this gate |
+| Messenger Copy / explicit Paste | PASS: synthetic source confirmed by Miguel; exact native Paste verified in retest below | Initial keyboard defect reproduced and fixed; see post-fix APK SHA |
+| Repeated toggles | PASS on fixed APK: 20 panel cycles and 20 whole-assistant cycles | Initial run stopped after one cycle when Messenger became foreground; retained as incomplete historical run |
+| Force-stop / process recreation | PASS on fixed APK: fresh manual Open with empty input | Debug SIGKILL denied; unexpected-death recovery remains unverified |
+| Notification Close, manual revocation/denial | NOT RUN on physical APK yet | Earlier emulator results do not satisfy this gate |
 | Background with Messenger foreground | PASS: one Akma overlay and `OverlayService isForeground=true` | Own metadata only; no Messenger content capture |
 | Screen off / prolonged HiOS restrictions | NOT RUN | USB charging, screen on, Doze ACTIVE; no endurance claim |
 | Genuine local reply and manual Copy back to Messenger | BLOCKED | Production `UnavailableReplyEngine`; no fabricated reply or model lock-in |
@@ -145,6 +146,36 @@ The sanitized power snapshot showed USB charging (`status: 2`), 27% battery, tem
 
 Remaining physical checks require the handset operator. Keep screenshots limited to Akma and synthetic content; do not capture personal notifications. HiOS/XOS investigation must use observed behavior and user controls, without silent whitelisting, ADB battery bypasses or automatic restart. Infinix Zero 5G and Camon 30 are not tested by this run.
 
+## Focused Paste regression and retest
+
+Miguel confirmed that the copied Messenger group-chat text was synthetic, then reported that **Paste message** did not open the software keyboard. The initial APK reproduced this on LE7/API 30: native Paste inserted the synthetic text and the message field was focused, but `mInputShown` remained false. This is an actual physical defect, not an emulator inference.
+
+`OverlayPanel` now posts a normal `InputMethodManager.showSoftInput(message, SHOW_IMPLICIT)` request after the explicit Paste click. It checks that the field is still attached and its window still focused; closing before delivery cannot reopen the keyboard. It never uses SHOW_FORCED or reads the clipboard outside the native user action. No Activity/manifest/Gradle change is needed.
+
+Miguel replied “Ready” for the retest; a new slot was announced at <https://github.com/merd-labs/akma/pull/11#issuecomment-6081518189>. No other active local ADB client was observed. The same build/test/lint command passed again: `BUILD SUCCESSFUL in 1m 17s`, 15 executed / 36 up-to-date tasks, 40 tests with zero failures/errors, lint zero errors / 17 warnings.
+
+Fixed APK SHA-256: `f358bcd75a7d3319d8a52fca0a2df75abce2a1d9942cfab41e4c1e87ba7cb2af`. Installation returned `Success`. From an empty panel with keyboard hidden, one explicit Paste inserted exactly `Synthetic Akma test: can we move our meeting on friday` (the actual synthetic Messenger fixture). The field was focused and `mInputShown=true`. **PASS**. Close panel then cleared content, hid the keyboard, retained one nonfocusable bubble, and reopening showed empty input. **PASS**. The OS clipboard stayed available; no application clipboard clear or background read was added.
+
+Regression evidence: local screenshots `paste-keyboard-before-fix.png` and `paste-keyboard-fixed.png`, captured only with Akma foreground and confirmed synthetic input. The successful post-fix screenshot shows the native software keyboard and accessible Close. Post-fix replay: **PASS**, 20 Close-panel/reopen cycles, with one root throughout and empty message after every reopening; then **PASS**, 20 Activity Close-overlay/Open-overlay cycles, with zero windows after Close and exactly one nonfocusable bubble after Open. Command:
+
+```bash
+PYTHONPATH=app/build/evidence/pova2 python3 -u app/build/evidence/pova2/toggle_smoke.py
+```
+
+The local ignored harness locates fresh app controls, taps the bubble using observed owned window geometry, and waits up to eight seconds for window counts. It requires Akma foreground before any UI dump. The earlier interrupted run remains recorded and is not counted as passing.
+
+Process-death probe: **BLOCKED** on the physical LE7. `run-as ph.merd.akma kill -9 <observed-own-PID>` returned `kill: unknown pid`; the app and its overlay remained alive. Retrying with the debug UID shell builtin returned `Permission denied`. No root or security-control bypass was attempted. This is a failed host debug probe, not a demonstrated Akma crash or passing unexpected-death test. An explicitly labelled own-app force-stop/relaunch test follows; it cannot prove unexpected-death restart semantics.
+
+Own-app force-stop/relaunch: **PASS**. With the synthetic fixture pasted, `am force-stop ph.merd.akma` removed the process and all Akma windows. Zero windows remained for a 10-second observation. Explicit Activity launch and Open then created one window with empty input. Screenshot: `process-reopened-empty.png` (fixed APK). This is a fresh process after a user-equivalent app stop, not proof of recovery from SIGKILL/OEM termination.
+
+```bash
+PYTHONPATH=app/build/evidence/pova2 python3 -u app/build/evidence/pova2/process_smoke.py
+adb -s <physical-serial> shell am force-stop ph.merd.akma
+adb -s <physical-serial> shell am start -n ph.merd.akma/.MainActivity
+```
+
+The automated fixed-APK focus/keyboard proof had Akma Activity foreground. The separate Messenger-background metadata check had one overlay and an active foreground service. A human retest of keyboard/Paste directly over Messenger is requested; those observations must not be conflated.
+
 ## Git and hosted CI handoff
 
 Implementation commit: `759c3f362e32e1ac87c7527b7bc90912181e748b`, pushed non-force to the verified `merd-labs/akma` branch `feat/overlay-paste`. Draft PR #12 stays against `chore/akma-bootstrap`; bootstrap PR #4 remains open. Jairus (`jairuss0`) is the requested independent reviewer. No merge or publicity action was taken.
@@ -153,7 +184,7 @@ Hosted implementation push: Android build/unit-test job **PASS** in PR workflow 
 
 All five changed files are scoped text source/tests/evidence. Staged contents were reviewed for credentials, private keys, model weights, APKs, keystores and personal chat text; none were staged. `git diff --check`, cached whitespace check and active-doc branding scan passed (historical references/provenance excluded). No shared-file changes or new production dependencies were introduced. Coordinator API usage and independent review were requested on <https://github.com/merd-labs/akma/pull/7#issuecomment-6081424227>.
 
-Outstanding: human-confirmed synthetic Messenger Copy/Paste; a completed repeated-toggle run; physical notification Close, manual permission denial/revocation, process recreation and screen off/on; prolonged HiOS behavior; genuine offline inference and draft Copy. These are not passing hardware checks. Notification/UI/ID changes, if needed, go to their owners. Tests validate cleared draft/readiness behavior with test-only engines, not real on-device inference.
+Outstanding: human confirmation of the fixed keyboard directly over Messenger; physical notification Close, manual permission denial/revocation and screen off/on; unexpected-death recovery (debug SIGKILL denied); prolonged HiOS behavior; genuine offline inference and draft Copy. These are not passing hardware checks. Notification/UI/ID changes, if needed, go to their owners. Tests validate cleared draft/readiness behavior with test-only engines, not real on-device inference.
 
 ## Platform references
 
