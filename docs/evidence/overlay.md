@@ -86,6 +86,8 @@ Screenshots use only synthetic input and are kept outside Git under ignored `app
 
 Operator: Miguel. Messenger was selected temporarily for testing. The exclusive overlay slot was announced on benchmark PR #11: <https://github.com/merd-labs/akma/pull/11#issuecomment-6081257150>. No active local ADB client/model benchmark was observed before starting. This is a coordination notice, not proof that another host is idle. No model benchmark, OEM-control bypass or unrelated process termination was performed.
 
+The agent released the ADB slot at `2026-10-09T21:06:38+08:00` after stopping the toggle run when Messenger became foreground. Further automation requires a new coordinated slot.
+
 The sole authorized non-emulator ADB target was selected explicitly for every command. Its serial is omitted from this report. Verified properties:
 
 - Manufacturer: `TECNO MOBILE LIMITED`; model: `TECNO LE7`.
@@ -112,6 +114,11 @@ adb -s <physical-serial> shell cmd appops get ph.merd.akma SYSTEM_ALERT_WINDOW
 adb -s <physical-serial> shell am start -n ph.merd.akma/.MainActivity
 adb -s <physical-serial> shell dumpsys window windows
 adb -s <physical-serial> shell dumpsys input_method
+adb -s <physical-serial> shell dumpsys activity services ph.merd.akma
+adb -s <physical-serial> shell dumpsys battery
+adb -s <physical-serial> shell dumpsys deviceidle
+adb -s <physical-serial> shell dumpsys deviceidle whitelist
+adb -s <physical-serial> shell settings get global low_power
 adb -s <physical-serial> shell input text SyntheticOverlayClearCheck
 ```
 
@@ -128,12 +135,25 @@ Miguel manually allowed overlay access in Android settings and confirmed complet
 | Messenger Copy / explicit Paste | PENDING human confirmation and focused Paste test | Miguel reports Danielle sent a message in group chat and he copied it; synthetic content must be confirmed before capture |
 | Repeated toggles | INCOMPLETE: one panel cycle passed; run stopped on own-Activity foreground guard | Messenger became foreground; no third-party UI dump or screenshot was taken |
 | Notification Close, manual revocation/denial, process recreation | NOT RUN on this physical APK yet | Earlier emulator results do not satisfy this gate |
-| Background / screen off / HiOS restrictions | NOT RUN yet | USB charging prevents an extended battery/Doze acceptance claim |
+| Background with Messenger foreground | PASS: one Akma overlay and `OverlayService isForeground=true` | Own metadata only; no Messenger content capture |
+| Screen off / prolonged HiOS restrictions | NOT RUN | USB charging, screen on, Doze ACTIVE; no endurance claim |
 | Genuine local reply and manual Copy back to Messenger | BLOCKED | Production `UnavailableReplyEngine`; no fabricated reply or model lock-in |
 
 The host helper reads UI only while Akma's Activity is foreground and stops if another app is resumed. Metadata checks filter Akma's own overlay windows. No clipboard inspection or third-party conversation dump is used. Screenshots are ignored local evidence under `app/build/evidence/pova2/`: `bubble.png`, `panel-reopened-empty.png`. The latter shows empty overlay and Activity inputs after Close. A visible “Grammarly has stopped” toast belongs to another installed app and is not evidence of an Akma crash. No action was taken against that app.
 
+The sanitized power snapshot showed USB charging (`status: 2`), 27% battery, temperature 253 tenths of a degree Celsius, screen on, deep/light idle states ACTIVE, battery saver `0`, and no Akma entry in the power whitelist. These observations establish the current test conditions, not survival under HiOS battery restrictions. No power setting was modified.
+
 Remaining physical checks require the handset operator. Keep screenshots limited to Akma and synthetic content; do not capture personal notifications. HiOS/XOS investigation must use observed behavior and user controls, without silent whitelisting, ADB battery bypasses or automatic restart. Infinix Zero 5G and Camon 30 are not tested by this run.
+
+## Git and hosted CI handoff
+
+Implementation commit: `759c3f362e32e1ac87c7527b7bc90912181e748b`, pushed non-force to the verified `merd-labs/akma` branch `feat/overlay-paste`. Draft PR #12 stays against `chore/akma-bootstrap`; bootstrap PR #4 remains open. Jairus (`jairuss0`) is the requested independent reviewer. No merge or publicity action was taken.
+
+Hosted implementation push: Android build/unit-test job **PASS** in PR workflow run `37934145509`. Documentation job **FAIL**, exit 2: `git show --format= --check HEAD` reported 16 historical whitespace findings, beginning at `docs/reference/elijah/01_PRODUCT_REQUIREMENTS.md:3`. The shallow checkout treats the commit as a root and scans preserved originals; local diff whitespace checks pass. The owner has separate open PR #13 for checkout depth; its Android and documentation jobs are observed passing. It has not been merged into this branch. The full PR therefore must not be reported as green.
+
+All five changed files are scoped text source/tests/evidence. Staged contents were reviewed for credentials, private keys, model weights, APKs, keystores and personal chat text; none were staged. `git diff --check`, cached whitespace check and active-doc branding scan passed (historical references/provenance excluded). No shared-file changes or new production dependencies were introduced. Coordinator API usage and independent review were requested on <https://github.com/merd-labs/akma/pull/7#issuecomment-6081424227>.
+
+Outstanding: human-confirmed synthetic Messenger Copy/Paste; a completed repeated-toggle run; physical notification Close, manual permission denial/revocation, process recreation and screen off/on; prolonged HiOS behavior; genuine offline inference and draft Copy. These are not passing hardware checks. Notification/UI/ID changes, if needed, go to their owners. Tests validate cleared draft/readiness behavior with test-only engines, not real on-device inference.
 
 ## Platform references
 
