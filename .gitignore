@@ -38,3 +38,10 @@ Thumbs.db
 .vscode/settings.json
 .pytest_cache/
 __pycache__/
+
+
+/testing-llm/.venv/
+/testing-llm/models/
+/testing-llm/model/
+/testing-llm/.cache/
+/testing-llm/*.log

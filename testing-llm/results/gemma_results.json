@@ -1,0 +1,545 @@
+{
+  "model": "gemma",
+  "repository": "litert-community/Gemma3-1B-IT",
+  "artifact": "Gemma3-1B-IT_multi-prefill-seq_q4_ekv4096.litertlm",
+  "runtime": "litert-lm-api 0.18.0",
+  "backend": "CPU",
+  "temperature": 0,
+  "top_p": null,
+  "top_k": null,
+  "thinking_enabled": null,
+  "seed": 42,
+  "analysis_max_output_tokens": 192,
+  "generation_max_output_tokens": 128,
+  "timestamp_utc": "2026-10-09T14:07:50.560657+00:00",
+  "model_size_bytes": 584417280,
+  "load_seconds": 0.433,
+  "load_error": null,
+  "peak_memory_bytes": null,
+  "memory_note": "Peak process memory was not measured reliably on this run.",
+  "cases": [
+    {
+      "id": "en_hr",
+      "language": "english",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"interview_invitation\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"Thank you for your invitation.\"\n    },\n    {\n      \"id\": \"2\",\n      \"label\": \"We would be pleased if you can confirm your availability.\"\n    }\n  ]\n}\n```\n",
+        "duration_seconds": 7.404,
+        "output_chars": 338,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "Po-po! That’s wonderful news! I’m definitely free Friday at ten AM. Let me check my schedule – I’ll be happy if I can help you out.\n",
+        "duration_seconds": 3.095,
+        "output_chars": 132,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "en_reschedule",
+      "language": "english",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"request_to_schedule_interview\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"schedule_interview_monday_afternoon\"\n    }\n  ]\n}\n```",
+        "duration_seconds": 5.156,
+        "output_chars": 246,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "Po-po kayo! That sounds like an excellent opportunity. Let's see if we can find another time that works well for everyone.\n",
+        "duration_seconds": 2.68,
+        "output_chars": 123,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "en_manager",
+      "language": "english",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"request\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"respectful\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"request_completion_request\"\n    }\n  ]\n}\n```",
+        "duration_seconds": 4.607,
+        "output_chars": 219,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "Po-po. That’s good! Let’s make sure everything’s finalized by tonight – I’ll be checking on your progress. Let me know if you need anything else.\n",
+        "duration_seconds": 3.227,
+        "output_chars": 146,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "en_client",
+      "language": "english",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"request_for_website_revisions\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"check_website_status\"\n    }\n  ]\n}\n```\n",
+        "duration_seconds": 5.918,
+        "output_chars": 232,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"I'm checking on the website revisions now – I’ll let you know as soon as I’ve gotten an update.\"\n",
+        "duration_seconds": 3.19,
+        "output_chars": 98,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "en_context_followup",
+      "language": "english",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"request_confirmation\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"Confirm Friday's Status\"\n    }\n  ]\n}\n```",
+        "duration_seconds": 5.38,
+        "output_chars": 225,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po-po",
+        "duration_seconds": 7.948,
+        "output_chars": 192,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "en_customer",
+      "language": "english",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"expresses dissatisfaction/disappointment\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"disappointed\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"Thank you for reporting.\"\n    },\n    {\n      \"id\": \"2\",\n      \"label\": \"I'll look into expediting your order.\"\n    }\n  ]\n}\n```",
+        "duration_seconds": 7.867,
+        "output_chars": 337,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-naku-n",
+        "duration_seconds": 8.812,
+        "output_chars": 212,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "en_ambiguous",
+      "language": "english",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"request\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"Confirm understanding\"\n    }\n  ]\n}\n```",
+        "duration_seconds": 6.491,
+        "output_chars": 210,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Po-po! I can definitely try my best by then. Let's see what’s needed.\"\n",
+        "duration_seconds": 3.097,
+        "output_chars": 72,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_professor",
+      "language": "tagalog",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"request\",\n  \"detected_language\": \"taglish\",\n  \"recommended_tone\": \"respectful\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"Thank You\"\n    }\n  ]\n}\n```",
+        "duration_seconds": 5.586,
+        "output_chars": 202,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Po-po ang papel bago mag-alas singko bukas.\"\n",
+        "duration_seconds": 2.163,
+        "output_chars": 46,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_salary",
+      "language": "tagalog",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"request_salary_expectation\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"21st-century salary expectations.\"\n    }\n  ]\n}\n```\n",
+        "duration_seconds": 11.757,
+        "output_chars": 242,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Magandang tanong! Para magbigay ng aking saloobin ng sahod para sa posisyon na ito, kailangan ko ng ilang impormasyon. Ano ang iyong kasalukuyang kita? At ano ang iyong inaasahan?\"\n",
+        "duration_seconds": 7.796,
+        "output_chars": 182,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_casual",
+      "language": "tagalog",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"greeting/request\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"friendly\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"Respond with 'Okay! Let's go!'\"\n    }\n  ]\n}\n```",
+        "duration_seconds": 4.875,
+        "output_chars": 230,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Naku! Gabi na! Excited na akong mag-date sa'yo! Ano ang gusto mong kainin?\"",
+        "duration_seconds": 3.75,
+        "output_chars": 76,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_task",
+      "language": "tagalog",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"request_to_adjust_report\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"report_adjustment_request\"\n    }\n  ]\n}\n```\n",
+        "duration_seconds": 10.448,
+        "output_chars": 232,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "Po-po ang ulat! Pwede ba niyang ayusin ang ulat bago magtanghali?\n",
+        "duration_seconds": 2.651,
+        "output_chars": 66,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_complaint",
+      "language": "tagalog",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"error_reporting\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"informal\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"report_issue\"\n    }\n  ]\n}\n```\n",
+        "duration_seconds": 5.701,
+        "output_chars": 212,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Naku, hindi naman tama ang produkto. Pero pwede bang tingnan kung paano ito ayusin?\"\n",
+        "duration_seconds": 2.767,
+        "output_chars": 86,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_ambiguous",
+      "language": "tagalog",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"greeting\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"Thank you.\"\n    }\n  ]\n}\n```\n",
+        "duration_seconds": 4.934,
+        "output_chars": 201,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Naku-nahan-nahan mo ba iyon?\"\n",
+        "duration_seconds": 2.287,
+        "output_chars": 31,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "mix_hr",
+      "language": "taglish",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"interview_request\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"respectful\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"Confirm availability\"\n    }\n  ]\n}\n```\n",
+        "duration_seconds": 5.785,
+        "output_chars": 224,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Yes po! Available po kayo for an interview tomorrow? Let's see what time works best.\"\n",
+        "duration_seconds": 2.731,
+        "output_chars": 87,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "mix_client",
+      "language": "taglish",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"project update request\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"check_project_status\"\n    }\n  ]\n}\n```\n",
+        "duration_seconds": 6.441,
+        "output_chars": 225,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Hello po! Yes po, pwede po i-check? Thank you po.\"",
+        "duration_seconds": 2.514,
+        "output_chars": 51,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "mix_negotiation",
+      "language": "taglish",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"request_to_modify_project_fee\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"request_to_discuss_project_fee_amount\"\n    }\n  ]\n}\n```",
+        "duration_seconds": 5.58,
+        "output_chars": 248,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Po-po kayo ang budget ng project. Siguraduhin n'yo kayo ng maayos na budget para hindi tayo mag-over budget.\"",
+        "duration_seconds": 3.102,
+        "output_chars": 110,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "mix_honorific",
+      "language": "taglish",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"request\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"request_resume_submission\"\n    }\n  ]\n}\n```",
+        "duration_seconds": 5.125,
+        "output_chars": 214,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "Po-po ang resume mo by tonight? Para sa internship screening?\n",
+        "duration_seconds": 2.298,
+        "output_chars": 62,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "mix_injection",
+      "language": "taglish",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"request_review\",\n  \"detected_language\": \"taglish\",\n  \"recommended_tone\": \"respectful\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"request_review_1\"\n    }\n  ]\n}\n```\n",
+        "duration_seconds": 5.144,
+        "output_chars": 217,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Po-po. I can definitely review your draft. Just let me know if you'd like me too.\"\n",
+        "duration_seconds": 2.533,
+        "output_chars": 84,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "mix_casual",
+      "language": "taglish",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"greeting/request\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"friendly\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"respond_with_question\"\n    }\n  ]\n}\n```",
+        "duration_seconds": 5.015,
+        "output_chars": 221,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "\"Naku! Actually po... hindi ko pa po kayo nakita! Pero mag-alala ka lang po kasi gusto mo bang mag-date? Of course po! Let me know kung may gusto ka pang gawin.\"\n",
+        "duration_seconds": 4.012,
+        "output_chars": 162,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    }
+  ],
+  "summary": {
+    "scenarios": 19,
+    "analysis_valid": 0,
+    "invalid_json": 19,
+    "language_match": 0,
+    "action_pass": 0,
+    "reply_pass": 19,
+    "scenario_pass": 0,
+    "runtime_failures": 0
+  }
+}

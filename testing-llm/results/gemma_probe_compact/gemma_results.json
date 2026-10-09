@@ -1,0 +1,123 @@
+{
+  "model": "gemma",
+  "prompt_profile": "gemma_compact",
+  "repository": "litert-community/Gemma3-1B-IT",
+  "artifact": "Gemma3-1B-IT_multi-prefill-seq_q4_ekv4096.litertlm",
+  "runtime": "litert-lm-api 0.18.0",
+  "backend": "CPU",
+  "temperature": 0,
+  "top_p": null,
+  "top_k": null,
+  "thinking_enabled": null,
+  "seed": 42,
+  "analysis_max_output_tokens": 192,
+  "generation_max_output_tokens": 128,
+  "timestamp_utc": "2026-10-09T14:23:39.278861+00:00",
+  "model_size_bytes": 584417280,
+  "load_seconds": 0.541,
+  "load_error": null,
+  "peak_memory_bytes": null,
+  "memory_note": "Peak process memory was not measured reliably on this run.",
+  "cases": [
+    {
+      "id": "en_hr",
+      "language": "english",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"to invite someone for an interview\",\n  \"detected_language\": \"English\",\n  \"recommended_tone\": \"formal\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"schedule_interview_date\"\n    },\n    {\n      \"id\": \"2\",\n      \"label\": \"confirm_availability\"\n    }\n  ]\n}\n```\n",
+        "duration_seconds": 6.275,
+        "output_chars": 308,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "We’d be pleased if you could be available for an interview. Would you be free Friday at 10 AM?",
+        "duration_seconds": 1.865,
+        "output_chars": 94,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "repetition_absent": true,
+          "unsupported_commitment_absent": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "tl_professor",
+      "language": "tagalog",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"to request someone else's action\",\n  \"detected_language\": \"tagalog\",\n  \"recommended_tone\": \"formal\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"1. Confirm action.\"\n    },\n    {\n      \"id\": \"2\",\n      \"label\": \"2. Confirm action.\"\n    }\n  ]\n}\n```\n",
+        "duration_seconds": 5.559,
+        "output_chars": 299,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "Po. Pasabuyin niyo ang papel bago mag-alas singko bukas.\n",
+        "duration_seconds": 1.655,
+        "output_chars": 57,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "repetition_absent": true,
+          "unsupported_commitment_absent": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    },
+    {
+      "id": "mix_hr",
+      "language": "taglish",
+      "analysis": {
+        "output": "```json\n{\n  \"message_purpose\": \"requesting an interview\",\n  \"detected_language\": \"Tagalog\",\n  \"recommended_tone\": \"Polite\",\n  \"suggested_actions\": [\n    {\n      \"id\": \"1\",\n      \"label\": \"Confirm availability\"\n    },\n    {\n      \"id\": \"2\",\n      \"label\": \"Thank you for your inquiry\"\n    }\n  ]\n}\n```\n",
+        "duration_seconds": 5.772,
+        "output_chars": 300,
+        "error": null,
+        "checks": {
+          "valid_json_schema": false,
+          "language_match": null,
+          "forbidden_action_claim_absent": null,
+          "error": "Expecting value: line 1 column 1 (char 0)"
+        }
+      },
+      "generation": {
+        "output": "Yes po. Available po kayo tomorrow for an interview.\n",
+        "duration_seconds": 1.262,
+        "output_chars": 53,
+        "error": null,
+        "checks": {
+          "nonempty": true,
+          "reply_only": true,
+          "repetition_absent": true,
+          "unsupported_commitment_absent": true,
+          "forbidden_claim_absent": true
+        }
+      }
+    }
+  ],
+  "summary": {
+    "scenarios": 3,
+    "analysis_valid": 0,
+    "invalid_json": 3,
+    "language_match": 0,
+    "action_pass": 0,
+    "reply_pass": 3,
+    "repetition_pass": 3,
+    "commitment_pass": 3,
+    "reply_format_pass": 3,
+    "scenario_pass": 0,
+    "runtime_failures": 0
+  }
+}
