@@ -14,8 +14,10 @@ import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.SamplerConfig
 import java.io.File
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import ph.merd.akma.provisioning.BundledModelProvisioner
 import ph.merd.akma.provisioning.BundledQwenArtifact
 import ph.merd.akma.provisioning.ModelProvisionResult
@@ -27,14 +29,19 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
     private val runtime = NativeHandleSlot<Engine>()
     override val requiresRestart: Boolean get() = runtime.quarantined
 
-    override suspend fun invalidateRuntime(): Result<Unit> = runtime.invalidate()
+    override suspend fun invalidateRuntime(): Result<Unit> = try {
+        runtime.invalidate()
+    } finally {
+        // A retry after native failure must fully verify bytes rather than reuse the old receipt.
+        provisioner.invalidateVerification()
+    }
     private val provisioner = BundledModelProvisioner(app)
 
     override suspend fun initialize(): Result<Unit> = guarded {
         runtime.invalidate().getOrThrow()
         val model = when (val result = provisioner.ensureBundledModel(BundledQwenArtifact.spec)) {
             is ModelProvisionResult.Verified -> result.model.file
-            is ModelProvisionResult.Failure -> throw ModelUnavailableException()
+            is ModelProvisionResult.Failure -> throw LocalModelProvisioningException(result.reason)
         }
         currentCoroutineContext().ensureActive()
         val started = SystemClock.elapsedRealtime()
@@ -46,15 +53,16 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
             Log.i(TAG, "model_initialized_ms=${SystemClock.elapsedRealtime() - started}")
         } catch (failure: Throwable) {
             // Cleanup only; this catch never converts fatal VM errors into recoverable results.
-            runtime.invalidate()
+            withContext(NonCancellable) { invalidateRuntime() }
             throw failure
         }
     }
 
     override suspend fun analyze(request: AnalyzeRequest): Result<AnalysisResult> = guarded {
         ReplyValidation.validate(request).getOrThrow()
-        val input = org.json.JSONObject().put("incoming_message", ModelOutputSafety.neutralizePromptInput(request.message))
-            .put("previous_context", ModelOutputSafety.neutralizePromptInput(request.history)).put("relationship", request.relationship?.let(ModelOutputSafety::neutralizePromptInput)).toString()
+        val safe = neutralizedForPrompt(request)
+        val input = org.json.JSONObject().put("incoming_message", safe.message)
+            .put("previous_context", safe.history).put("relationship", safe.relationship).toString()
         val raw = generate(prompt("analyze_v2.txt"), input, 192)
         val json = org.json.JSONObject(raw.trim())
         require(raw.trim().startsWith("{") && raw.trim().endsWith("}")) { "Malformed analysis." }
@@ -69,13 +77,14 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
         ReplyValidation.validate(request.original).getOrThrow()
         val selected = ActionCatalog.action(request.selectedActionId) ?: error("Unknown action.")
         ReplyValidation.validate(request, listOf(selected)).getOrThrow()
-        val input = org.json.JSONObject().put("incoming_message", ModelOutputSafety.neutralizePromptInput(request.original.message))
-            .put("previous_context", ModelOutputSafety.neutralizePromptInput(request.original.history))
-            .put("relationship", request.original.relationship?.let(ModelOutputSafety::neutralizePromptInput))
+        val safe = neutralizedForPrompt(request)
+        val input = org.json.JSONObject().put("incoming_message", safe.original.message)
+            .put("previous_context", safe.original.history)
+            .put("relationship", safe.original.relationship)
             .put("selected_action_id", request.selectedActionId)
             .put("selected_intention", selected.label)
             .put("tone", request.tone.name.lowercase())
-            .put("user_instructions", ModelOutputSafety.neutralizePromptInput(request.userInstruction)).toString()
+            .put("user_instructions", safe.userInstruction).toString()
         val actionRule = when (request.selectedActionId) {
             "reschedule" -> "The user selected RESCHEDULE. Ask the sender for a different interview time. Do not say you are available Friday at 10 or accept that time."
             "clarify", "ask_agenda", "ask_to_clarify" -> "The user selected a question. Ask for details before agreeing to anything."
@@ -164,10 +173,10 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
     } catch (cancel: CancellationException) {
         throw cancel
     } catch (failure: LinkageError) {
-        runtime.invalidate()
+        withContext(NonCancellable) { invalidateRuntime() }
         Result.failure(failure)
     } catch (failure: OutOfMemoryError) {
-        runtime.invalidate()
+        withContext(NonCancellable) { invalidateRuntime() }
         Result.failure(failure)
     } catch (failure: Exception) {
         Result.failure(failure)

@@ -12,7 +12,12 @@ data class OverlayStatus(val open: Boolean = false, val error: String? = null)
 
 class AkmaApplication : Application() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    val replies by lazy { ReplyCoordinator(LiteRtReplyEngine(this), scope) }
+    val replies by lazy { ReplyCoordinator(
+        LiteRtReplyEngine(this), scope,
+        // Provisioning, full hashing and cold CPU initialization need a separate bounded deadline.
+        // These conservative limits are not measured performance or a device-acceptance claim.
+        timeoutMillis = 240_000, initTimeoutMillis = 900_000,
+    ) }
     val overlayStatus = MutableStateFlow(OverlayStatus())
     override fun onCreate() {
         super.onCreate()

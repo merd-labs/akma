@@ -53,7 +53,9 @@ class ReplyCoordinator(
     private val worker: CoroutineDispatcher = Dispatchers.IO,
     private val timeoutMillis: Long = 60_000,
     allowedActionIds: Set<String> = ActionCatalog.actionIds,
+    private val initTimeoutMillis: Long = timeoutMillis,
 ) {
+    init { require(timeoutMillis > 0 && initTimeoutMillis > 0) }
     private val allowedActionIds = allowedActionIds.toSet()
     private val mutableState = MutableStateFlow(ReplyState())
     val state = mutableState.asStateFlow()
@@ -250,6 +252,8 @@ class ReplyCoordinator(
             pendingConfirmation = null,
             notice = if (error is RuntimeRestartRequiredException) {
                 "Local AI cleanup failed. Restart Akma before retrying."
+            } else if (error is LocalModelProvisioningException) {
+                error.userNotice
             } else ModelOutputSafety.safeFailure(error).userMessage,
         )
     }
@@ -335,7 +339,8 @@ class ReplyCoordinator(
         }
         operation = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                val result = withTimeout(timeoutMillis) { active.completed.await().getOrThrow() }
+                val deadline = if (phase == ReplyPhase.ModelLoading) initTimeoutMillis else timeoutMillis
+                val result = withTimeout(deadline) { active.completed.await().getOrThrow() }
                 if (generation == currentGeneration) {
                     if (phase == ReplyPhase.ModelLoading) initialized = true
                     mutableState.value = result
