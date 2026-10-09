@@ -4,4 +4,56 @@
     <string name="model_unavailable">Model unavailable</string>
     <string name="baseline_status">Local AI is not configured. No AI drafts are available yet.</string>
     <string name="workflow_intro">When ready, manually copy a message, paste it into Akma, choose an action and edit your draft. You control copying and sending.</string>
+
+    <!-- Akma UI kit (Figma AKMA file). -->
+    <string name="akma_on_device">On-device</string>
+    <string name="akma_close">Close Akma</string>
+    <string name="akma_detected_intent">Detected intent</string>
+    <string name="akma_source_local_model">Read on this phone. Check it matches your message.</string>
+    <string name="akma_source_deterministic">Not classified. Showing general replies.</string>
+    <string name="akma_what_to_say">What do you want to say?</string>
+    <string name="akma_your_reply">Your reply</string>
+    <string name="akma_tap_to_edit">Tap to edit</string>
+    <string name="akma_writing_on_phone">Writing on this phone</string>
+    <string name="akma_copy_reply">Copy reply</string>
+    <string name="akma_copied">Copied</string>
+    <string name="akma_copied_hint">Now close Akma and paste it in your chat.</string>
+    <string name="akma_cancel">Cancel</string>
+    <string name="akma_no_internet">No internet needed</string>
+    <string name="akma_reading_title">Reading your message</string>
+    <string name="akma_reading_body">Working out what it is about. This runs on your phone; nothing is sent online.</string>
+    <string name="akma_loading_model_title">Starting Akma</string>
+    <string name="akma_loading_model_body">Loading the on-device model. Nothing is sent online.</string>
+    <string name="akma_review_title">Check before Akma writes</string>
+    <string name="akma_review_body">Akma will write a reply for this choice. Nothing is written until you tap Write reply.</string>
+    <string name="akma_review_choice">%1$s · %2$s</string>
+    <string name="akma_write_reply">Write reply</string>
+    <string name="akma_paste_title">Paste the message</string>
+    <string name="akma_paste_hint">Copy a message in your chat, then paste it here.</string>
+    <string name="akma_paste">Paste</string>
+    <string name="akma_analyze">Read message</string>
+    <string name="akma_char_count">%1$d / %2$d</string>
+    <string name="akma_empty_copy_title">Copy a message first</string>
+    <string name="akma_empty_copy_body">Long-press a message in your chat, tap Copy, then tap the Akma bubble again.</string>
+    <string name="akma_got_it">Got it</string>
+    <string name="akma_no_model_title">On-device model not ready</string>
+    <string name="akma_no_model_body">Akma cannot read or write messages until its local model is installed. Nothing is sent online.</string>
+    <string name="akma_retry">Try again</string>
+    <string name="akma_error_title">Something went wrong</string>
+    <string name="akma_error_body">Akma could not finish on this phone. Your message was not sent anywhere.</string>
+    <string name="akma_dismiss">Dismiss</string>
+    <string name="akma_privacy_note">Runs on this phone and works without internet. Nothing you copy leaves it.</string>
+    <string name="akma_preview_badge">PREVIEW · sample text, not AI output</string>
+
+    <string name="akma_tone_professional">Professional</string>
+    <string name="akma_tone_friendly">Friendly</string>
+    <string name="akma_tone_concise">Concise</string>
+
+    <string name="akma_category_interview_invitation">Interview invitation</string>
+    <string name="akma_category_meeting">Meeting</string>
+    <string name="akma_category_reschedule_request">Reschedule request</string>
+    <string name="akma_category_follow_up">Follow-up</string>
+    <string name="akma_category_complaint">Complaint</string>
+    <string name="akma_category_casual">Casual message</string>
+    <string name="akma_category_other">Other</string>
 </resources>

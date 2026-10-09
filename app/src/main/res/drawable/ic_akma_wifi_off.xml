@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma AKMA icon: 24dp frame, 2dp stroke. Path data is the Figma export; the group transform restores the 24dp frame. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:scaleX="1.3333333"
+        android:scaleY="1.3333333"
+        android:translateX="1"
+        android:translateY="1">
+        <path
+            android:pathData="M0.750007 0.75L15.75 15.75"
+            android:strokeColor="#FF6B6478"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M5.62501 11.625C6.32599 10.9379 7.26843 10.553 8.25001 10.553C9.23158 10.553 10.174 10.9379 10.875 11.625"
+            android:strokeColor="#FF6B6478"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M3.00001 8.895C4.06353 7.85243 5.41336 7.1501 6.87751 6.8775"
+            android:strokeColor="#FF6B6478"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M13.5 8.895C13.0476 8.45295 12.5411 8.06991 11.9925 7.755"
+            android:strokeColor="#FF6B6478"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M0.750007 5.865C1.67775 5.03348 2.73717 4.36184 3.88501 3.8775"
+            android:strokeColor="#FF6B6478"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M15.75 5.865C14.6056 4.8422 13.2641 4.06439 11.8079 3.57942C10.3517 3.09445 8.81162 2.91258 7.28251 3.045"
+            android:strokeColor="#FF6B6478"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M8.25001 14.25H8.25751"
+            android:strokeColor="#FF6B6478"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>

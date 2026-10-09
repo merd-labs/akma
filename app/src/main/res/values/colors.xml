@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Akma design tokens from the AKMA Figma file (DYiiO7JdJsIMjyDH2Cc4ZF).
+  Source of truth: ph.merd.akma.ui.theme.AkmaTokens. UiKitConsistencyTest keeps both in sync.
+  Provided for the Android Views overlay; Compose code uses AkmaTheme.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="UnusedResources">
+    <color name="akma_text_primary">#FF17121F</color>
+    <color name="akma_text_secondary">#FF6B6478</color>
+    <color name="akma_text_brand_strong">#FF6B21A8</color>
+    <color name="akma_text_on_brand">#FFFFFFFF</color>
+    <color name="akma_bg_app">#FFF9F8FB</color>
+    <color name="akma_bg_surface">#FFFFFFFF</color>
+    <color name="akma_bg_subtle">#FFF2F0F5</color>
+    <color name="akma_bg_muted">#FFE4E0EA</color>
+    <color name="akma_bg_brand">#FFA855F7</color>
+    <color name="akma_bg_brand_strong">#FF7E22CE</color>
+    <color name="akma_bg_brand_subtle">#FFFAF5FF</color>
+    <color name="akma_bg_brand_muted">#FFF3E8FF</color>
+    <color name="akma_bg_success">#FF15803D</color>
+    <color name="akma_bg_scrim">#8017121F</color>
+    <color name="akma_border_default">#FFE4E0EA</color>
+    <color name="akma_border_strong">#FFCBC5D4</color>
+</resources>

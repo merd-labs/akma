@@ -1,0 +1,120 @@
+package ph.merd.akma.ui
+
+import ph.merd.akma.domain.AnalysisSource
+import ph.merd.akma.domain.ReplyPhase
+import ph.merd.akma.domain.ReplyState
+import ph.merd.akma.domain.ReplyTone
+import ph.merd.akma.domain.ReplyValidation
+
+/** What the panel shows. Built only from coordinator state; it never invents text. */
+data class JourneyPanelUi(
+    val step: JourneyStep,
+    val status: PanelStatus?,
+    val input: InputUi?,
+    val reading: Boolean,
+    val intent: IntentUi?,
+    val choice: ChoiceUi?,
+    val confirmation: ConfirmationUi?,
+    val reply: ReplyUi?,
+    val copy: CopyUi,
+    val canCancelProcessing: Boolean,
+)
+
+enum class PanelStatus { ModelUnavailable, LoadingModel, Error }
+
+data class InputUi(val message: String, val maxLength: Int, val canAnalyze: Boolean)
+
+data class IntentUi(val categoryId: String, val message: String, val source: AnalysisSource)
+
+data class ActionUi(val id: String, val label: String)
+
+data class ChoiceUi(
+    val actions: List<ActionUi>,
+    val selectedActionId: String?,
+    val tone: ReplyTone,
+    val enabled: Boolean,
+)
+
+/** The exact staged request. The confirm control must confirm [confirmationId], never a newer one. */
+data class ConfirmationUi(
+    val confirmationId: Long,
+    val actionLabel: String,
+    val tone: ReplyTone,
+    val message: String,
+)
+
+sealed interface ReplyUi {
+    data object Writing : ReplyUi
+    data class Draft(val text: String) : ReplyUi
+}
+
+enum class CopyUi { Hidden, Disabled, Ready, Copied }
+
+/**
+ * Maps coordinator state to panel content.
+ * [selectedTone] and [lastSelectedActionId] are UI-held choices; a pending confirmation overrides both.
+ * Analysis reaching ReplyState is already normalized, so its action labels are catalog labels.
+ */
+fun ReplyState.toPanelUi(selectedTone: ReplyTone, lastSelectedActionId: String?): JourneyPanelUi {
+    val pending = pendingConfirmation
+    val tone = pending?.request?.tone ?: selectedTone
+    val selectedId = pending?.action?.id ?: lastSelectedActionId
+    val result = analysis
+    val intent = result?.let { IntentUi(it.category, message, it.source) }
+    fun choice(enabled: Boolean) = result?.let { r ->
+        ChoiceUi(
+            actions = r.actions.map { ActionUi(it.id, it.label) },
+            selectedActionId = selectedId?.takeIf { id -> r.actions.any { it.id == id } },
+            tone = tone,
+            enabled = enabled,
+        )
+    }
+    val base = JourneyPanelUi(
+        step = journeyStep(),
+        status = null,
+        input = null,
+        reading = false,
+        intent = null,
+        choice = null,
+        confirmation = null,
+        reply = null,
+        copy = CopyUi.Hidden,
+        canCancelProcessing = busy,
+    )
+    return when (phase) {
+        ReplyPhase.ModelUnavailable -> base.copy(
+            status = PanelStatus.ModelUnavailable,
+            input = InputUi(message, ReplyValidation.MAX_TEXT_LENGTH, canAnalyze = false),
+        )
+        ReplyPhase.ModelLoading -> base.copy(status = PanelStatus.LoadingModel)
+        ReplyPhase.Ready -> base.copy(
+            input = InputUi(message, ReplyValidation.MAX_TEXT_LENGTH, canAnalyze = message.isNotBlank()),
+        )
+        ReplyPhase.Analyzing -> base.copy(reading = true)
+        ReplyPhase.ChoosingAction -> base.copy(
+            intent = intent,
+            choice = choice(enabled = true),
+            confirmation = pending?.let {
+                ConfirmationUi(it.id, it.action.label, it.request.tone, it.request.original.message)
+            },
+            copy = CopyUi.Disabled,
+        )
+        ReplyPhase.Drafting -> base.copy(
+            intent = intent,
+            choice = choice(enabled = false),
+            reply = ReplyUi.Writing,
+            copy = CopyUi.Disabled,
+        )
+        ReplyPhase.Editing, ReplyPhase.Copied -> base.copy(
+            intent = intent,
+            choice = choice(enabled = true),
+            reply = ReplyUi.Draft(draft),
+            copy = when {
+                !canCopy -> CopyUi.Disabled
+                phase == ReplyPhase.Copied -> CopyUi.Copied
+                else -> CopyUi.Ready
+            },
+        )
+        ReplyPhase.Error -> base.copy(status = PanelStatus.Error, intent = intent)
+    }
+}
