@@ -165,9 +165,23 @@ class ReplyCoordinator(
 
     private fun process(phase: ReplyPhase, work: suspend () -> ReplyState) {
         if (state.value.busy) return
-        if (state.value.phase != ReplyPhase.Error) recoveryPhase = state.value.phase
+        val clearOutput = phase == ReplyPhase.ModelLoading || phase == ReplyPhase.Analyzing
+        when (phase) {
+            ReplyPhase.ModelLoading -> {
+                initialized = false
+                recoveryPhase = ReplyPhase.ModelUnavailable
+            }
+            ReplyPhase.Analyzing -> recoveryPhase = readyPhase()
+            else -> if (state.value.phase != ReplyPhase.Error) recoveryPhase = state.value.phase
+        }
         val currentGeneration = ++generation
-        mutableState.value = state.value.copy(phase = phase, pendingConfirmation = null, notice = null)
+        mutableState.value = state.value.copy(
+            phase = phase,
+            analysis = if (clearOutput) null else state.value.analysis,
+            draft = if (clearOutput) "" else state.value.draft,
+            pendingConfirmation = null,
+            notice = null,
+        )
         operation = scope.launch(start = CoroutineStart.LAZY) {
             try {
                 val result = withTimeout(timeoutMillis) {

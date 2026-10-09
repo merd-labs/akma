@@ -152,7 +152,7 @@ class ReplyCoordinatorTest {
     @Test
     fun unapprovedActionAndMalformedAnalysisFailVisibly() = runTest {
         val engine = FixtureEngine().apply {
-            analysisResult = Result.success(AnalysisResult("invitation", "Synthetic summary", true, listOf(SuggestedAction("refund", "Promise refund"))))
+            analysisResult = Result.success(AnalysisResult("invitation", "Synthetic summary", true, listOf(SuggestedAction("refund", "Promise refund")), AnalysisSource.DETERMINISTIC))
         }
         val replies = ReplyCoordinator(engine, this, StandardTestDispatcher(testScheduler))
         replies.initialize()
