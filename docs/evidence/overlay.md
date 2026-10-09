@@ -135,9 +135,10 @@ Miguel manually allowed overlay access in Android settings and confirmed complet
 | Messenger Copy / explicit Paste | PASS: synthetic source confirmed by Miguel; exact native Paste verified in retest below | Initial keyboard defect reproduced and fixed; see post-fix APK SHA |
 | Repeated toggles | PASS on fixed APK: 20 panel cycles and 20 whole-assistant cycles | Initial run stopped after one cycle when Messenger became foreground; retained as incomplete historical run |
 | Force-stop / process recreation | PASS on fixed APK: fresh manual Open with empty input | Debug SIGKILL denied; unexpected-death recovery remains unverified |
-| Notification Close, manual revocation/denial | NOT RUN on physical APK yet | Earlier emulator results do not satisfy this gate |
+| Notification Close | PASS: Miguel tapped notification Close; zero Akma windows and no live OverlayService | Notification shade content was not read or captured |
+| Manual permission revocation/denial | PASS: app-op deny, zero windows/service, Activity fallback and rejected Open | Permission changed by Miguel in Android settings only |
 | Background with Messenger foreground | PASS: one Akma overlay and `OverlayService isForeground=true` | Own metadata only; no Messenger content capture |
-| Screen off / prolonged HiOS restrictions | NOT RUN | USB charging, screen on, Doze ACTIVE; no endurance claim |
+| Screen off/on | PASS: 30 seconds off with one window/foreground service; bubble remained after normal unlock | USB charging; prolonged HiOS/Doze endurance remains unverified |
 | Genuine local reply and manual Copy back to Messenger | BLOCKED | Production `UnavailableReplyEngine`; no fabricated reply or model lock-in |
 
 The host helper reads UI only while Akma's Activity is foreground and stops if another app is resumed. Metadata checks filter Akma's own overlay windows. No clipboard inspection or third-party conversation dump is used. Screenshots are ignored local evidence under `app/build/evidence/pova2/`: `bubble.png`, `panel-reopened-empty.png`. The latter shows empty overlay and Activity inputs after Close. A visible “Grammarly has stopped” toast belongs to another installed app and is not evidence of an Akma crash. No action was taken against that app.
@@ -174,17 +175,44 @@ adb -s <physical-serial> shell am force-stop ph.merd.akma
 adb -s <physical-serial> shell am start -n ph.merd.akma/.MainActivity
 ```
 
-The automated fixed-APK focus/keyboard proof had Akma Activity foreground. The separate Messenger-background metadata check had one overlay and an active foreground service. A human retest of keyboard/Paste directly over Messenger is requested; those observations must not be conflated.
+Direct Messenger retest: **PASS**. Miguel confirmed synthetic Paste and keyboard display over Messenger and explicitly authorized live display and Logcat inspection. ADB observed Messenger resumed, one Akma panel, Akma as the focused window, and `mInputShown=true`. Authorized live inspection showed the same synthetic fixture and native keyboard over Messenger. Akma-only Logcat sampled two lines, zero E-level entries and no `FATAL EXCEPTION`; this bounded sample is not a guarantee of no earlier crash. The live capture included unrelated material behind the panel, so it was discarded after inspection and is not handoff evidence. Clean Akma-only before/after screenshots are retained outside Git.
+
+```bash
+adb -s <physical-serial> shell dumpsys activity activities
+adb -s <physical-serial> shell dumpsys window
+adb -s <physical-serial> shell dumpsys input_method
+adb -s <physical-serial> shell logcat -d --pid=<observed-own-PID> -v brief -t 200
+# One explicitly authorized live screencap; discarded after verification.
+adb -s <physical-serial> exec-out screencap -p
+```
+
+No notification shade content or third-party UI XML was read. No production screenshot or Logcat collection feature was added.
+
+Notification Close: **PASS** on the fixed APK. Miguel manually closed the panel, then tapped Close on Akma's foreground notification. ADB confirmed zero Akma overlay windows and no live `OverlayService`. No shade UI dump, screenshot or notification listener was used. One bubble was then reopened and Android's own overlay-permission settings opened for manual revocation testing.
+
+Manual permission revocation/denial: **PASS**. With the bubble active, Miguel disabled overlay access in Android settings. ADB observed `SYSTEM_ALERT_WINDOW: deny`, zero Akma windows and no live overlay service. The first UI probe stopped because Akma was not resumed; explicitly launching Akma produced the permission-required fallback and Grant button. The harness initially treated the label's `enabled=true` as the button's state; this assumption failed because Compose exposes a separate TextView child. A direct tap on Open produced no window/service during a two-second observation. Screenshot: `permission-denied.png`. No app-op set/grant command was used on the physical phone. Manual regrant is requested next; Open must remain user-invoked.
+
+Manual permission regrant: **PASS**. Miguel enabled overlay access and returned to Akma without pressing Open. ADB observed `allow`, the Activity's granted state, zero windows and no live overlay service. Only a subsequent explicit Open created one bubble. Regrant alone did not reopen the assistant.
+
+Screen off/on: **PASS** for this bounded USB-charging run. Miguel switched the screen off manually; ADB observed `mScreenOn=false` and retained one Akma window plus `OverlayService isForeground=true` throughout 30 seconds. Miguel then unlocked normally and confirmed the bubble remained. No lockscreen capture, unlock bypass, forced Doze, battery exemption or OEM setting change was used. Command:
+
+```bash
+PYTHONPATH=app/build/evidence/pova2 python3 -u app/build/evidence/pova2/screen_smoke.py
+```
+
+This establishes short screen-off survival under charging, not extended HiOS battery management, memory pressure or airplane-mode inference. No XOS secondary device was tested.
+
+After normal unlock, ADB confirmed screen on and the same foreground service. The bubble opened an empty panel. Final panel Close plus Activity Close removed all Akma windows/service. Screenshot `after-screen-on-empty.png` is clean local evidence. The retest ADB slot was released at `2026-10-09T21:34:26+08:00`; no ADB/model operation remains running for this task. Permission remains enabled only by Miguel's manual consent.
 
 ## Git and hosted CI handoff
 
 Implementation commit: `759c3f362e32e1ac87c7527b7bc90912181e748b`, pushed non-force to the verified `merd-labs/akma` branch `feat/overlay-paste`. Draft PR #12 stays against `chore/akma-bootstrap`; bootstrap PR #4 remains open. Jairus (`jairuss0`) is the requested independent reviewer. No merge or publicity action was taken.
 
-Hosted implementation push: Android build/unit-test job **PASS** in PR workflow run `37934145509`. Documentation job **FAIL**, exit 2: `git show --format= --check HEAD` reported 16 historical whitespace findings, beginning at `docs/reference/elijah/01_PRODUCT_REQUIREMENTS.md:3`. The shallow checkout treats the commit as a root and scans preserved originals; local diff whitespace checks pass. The owner has separate open PR #13 for checkout depth; its Android and documentation jobs are observed passing. It has not been merged into this branch. The full PR therefore must not be reported as green.
+Hosted implementation push: Android build/unit-test job **PASS** in PR workflow run `37934145509`. Both Android jobs also passed for evidence head `c3ce75f` and final source head `4080a8a`; final-source run IDs are `37936306770` (push) and `37936313949` (PR). Documentation job **FAIL**, exit 2: `git show --format= --check HEAD` reported 16 historical whitespace findings, beginning at `docs/reference/elijah/01_PRODUCT_REQUIREMENTS.md:3`. The shallow checkout treats the commit as a root and scans preserved originals; local diff whitespace checks pass. The owner has separate open PR #13 for checkout depth; its Android and documentation jobs are observed passing. It has not been merged into this branch. The full PR therefore must not be reported as green.
 
 All five changed files are scoped text source/tests/evidence. Staged contents were reviewed for credentials, private keys, model weights, APKs, keystores and personal chat text; none were staged. `git diff --check`, cached whitespace check and active-doc branding scan passed (historical references/provenance excluded). No shared-file changes or new production dependencies were introduced. Coordinator API usage and independent review were requested on <https://github.com/merd-labs/akma/pull/7#issuecomment-6081424227>.
 
-Outstanding: human confirmation of the fixed keyboard directly over Messenger; physical notification Close, manual permission denial/revocation and screen off/on; unexpected-death recovery (debug SIGKILL denied); prolonged HiOS behavior; genuine offline inference and draft Copy. These are not passing hardware checks. Notification/UI/ID changes, if needed, go to their owners. Tests validate cleared draft/readiness behavior with test-only engines, not real on-device inference.
+Outstanding: unexpected-death recovery (debug SIGKILL denied), prolonged HiOS behavior, genuine offline inference and draft Copy. These are not passing hardware checks. Notification/UI/ID changes, if needed, go to their owners. Tests validate cleared draft/readiness behavior with test-only engines, not real on-device inference.
 
 ## Platform references
 
