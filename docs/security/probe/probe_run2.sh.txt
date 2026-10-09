@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# probe_run2.sh <serial> <scratch> ; coordinates from the victim window frame (no uiautomator)
+set -u
+export ANDROID_SERIAL=$1; S=$2; V=ph.merd.securityprobe.victim; A=ph.merd.securityprobe.attacker
+api=$(adb shell getprop ro.build.version.sdk | tr -d '\r'); echo "=== device $ANDROID_SERIAL API $api"
+adb install -r -t $S/probe/victim/build/outputs/apk/debug/victim-debug.apk >/dev/null; adb install -r -t $S/probe/attacker/build/outputs/apk/debug/attacker-debug.apk >/dev/null
+adb shell appops set $V SYSTEM_ALERT_WINDOW allow; adb shell appops set $A SYSTEM_ALERT_WINDOW allow
+stop(){ adb shell am stopservice -n $V/probe.victim.Overlay >/dev/null 2>&1; adb shell am stopservice -n $A/probe.attacker.Overlay >/dev/null 2>&1; sleep 1; }
+frame(){ adb shell dumpsys window windows | grep -A40 "Window{.* u0 $V}" | grep -m1 -oE "(mFrame|frame)=\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]" | grep -oE "[0-9]+" | tr '\n' ' '; }
+for alpha in 0.5 0.9; do
+  stop; adb logcat -c; adb shell am start-foreground-service -n $V/probe.victim.Overlay >/dev/null; sleep 2
+  read -r l t r b <<<"$(frame)"; echo "-- [tapjack alpha=$alpha] victim window frame [$l,$t][$r,$b]"
+  if [ -z "${t:-}" ]; then echo "   frame not found: NOT TESTED"; continue; fi
+  ax=$(( (l+r)/2 )); ay=$(( t+100 )); by=$(( t+300 ))
+  echo "   baseline taps"; adb shell input tap $ax $ay; adb shell input tap $ax $by; sleep 1
+  adb shell am start-foreground-service -n $A/probe.attacker.Overlay --es mode cover --ef alpha $alpha >/dev/null; sleep 2
+  echo "   attacker covering; tapping A and B"; adb shell input tap $ax $ay; adb shell input tap $ax $by; sleep 1
+  adb logcat -d -s PROBE:I | grep -v "^---" | sed 's/^.*PROBE *: */   /'
+done
+echo "-- [FLAG_SECURE screencap]"
+for mode in magenta magenta-secure; do
+  stop; adb shell am start-foreground-service -n $A/probe.attacker.Overlay --es mode $mode >/dev/null; sleep 3
+  adb shell screencap -p /data/local/tmp/probe.png; adb pull /data/local/tmp/probe.png "$S/probe_${mode}_api$api.png" >/dev/null 2>&1; adb shell rm -f /data/local/tmp/probe.png
+  python3 -I - "$S/probe_${mode}_api$api.png" "$mode" <<'PY'
+import sys,struct,zlib
+d=open(sys.argv[1],'rb').read(); pos=8; idat=b''
+while pos<len(d):
+    ln,=struct.unpack('>I',d[pos:pos+4]); t=d[pos+4:pos+8]; body=d[pos+8:pos+8+ln]
+    if t==b'IHDR': w,h,bd,ct,_,_,il=struct.unpack('>IIBBBBB',body)
+    if t==b'IDAT': idat+=body
+    pos+=12+ln
+raw=zlib.decompress(idat); bpp={2:3,6:4}[ct]; stride=w*bpp; rows=[]; prev=bytearray(stride); i=0
+for y in range(h):
+    f=raw[i]; line=bytearray(raw[i+1:i+1+stride]); i+=1+stride
+    for x in range(stride):
+        a=line[x-bpp] if x>=bpp else 0; b=prev[x]; c=prev[x-bpp] if x>=bpp else 0
+        if f==1: line[x]=(line[x]+a)&255
+        elif f==2: line[x]=(line[x]+b)&255
+        elif f==3: line[x]=(line[x]+((a+b)>>1))&255
+        elif f==4:
+            p=a+b-c; pa,pb,pc=abs(p-a),abs(p-b),abs(p-c); pr=a if pa<=pb and pa<=pc else (b if pb<=pc else c); line[x]=(line[x]+pr)&255
+    rows.append(line); prev=line
+cx=w//2
+# find the magenta block vertically: sample a column and report whether any pixel is pure magenta, and the colour at its expected centre region
+hits=[y for y in range(h) if tuple(rows[y][cx*bpp:cx*bpp+3])==(255,0,255)]
+print("   %s: screencap %dx%d, pure-magenta pixels in centre column: %d%s"%(sys.argv[2],w,h,len(hits)," (y %d-%d)"%(hits[0],hits[-1]) if hits else ""))
+PY
+  rm -f "$S/probe_${mode}_api$api.png"
+done
+stop
