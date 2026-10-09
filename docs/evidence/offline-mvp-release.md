@@ -18,15 +18,19 @@ README-only update `b31a6f0` was incorporated without altering its team-role cha
 | Native LiteRT adapter, #26 | Selected paths from `ae7f0946c6a6be26fd159650900da6769eb81008` | Runtime/application/prompts/dependencies only. Single-tap confirmation bypass excluded. |
 | Competing protocol, #20 | Excluded | No second parser, coordinator, Gson dependency, or model-loading pipeline. |
 | Copy security, #23 follow-up | Selected UI changes from `2798cad` | Full/partial obscured-touch filtering on Activity and overlay Copy; API33 sensitive clipboard metadata. Preserve current #25 Cancel/Retry controls. |
+| Native recovery, #28 | `f37decaf0f021ba7d98c75588030f6646b780d44` plus `e2d4673` | Retain typed failures, serialized cleanup and early cancellation; add bounded missing-callback quarantine. |
 | Compiled manifest guard | `cd6c846` | Accept signature's exact symbolic/decimal/hex representation; reject weaker levels and misleading strings. |
 
 The initial native/UI source checkpoint is `53b087c535f441815f600fd9ced816b4cdc54a39`.
-Domain owner [PR #28](https://github.com/merd-labs/akma/pull/28) is a dependency, not yet
-accepted here. Its initial `ae1e7c1` checkpoint still has an unbounded terminal-callback
-wait during cancellation. Primary requested bounded cleanup, uncertain-handle quarantine,
-verification invalidation and corresponding regressions. The domain owner retains these
-runtime/coordinator paths. The security owner retains its scoped follow-up; Primary does
-not import its competing combined branch wholesale. Quaternary owns provisioning and the
+Domain owner [PR #28](https://github.com/merd-labs/akma/pull/28), final published
+`f37decaf0f021ba7d98c75588030f6646b780d44`, was incorporated through Git. Its native/readiness
+recovery and cancellation-before-start changes remain. Primary coordinated the remaining
+bounded cancellation follow-up `e2d4673`: five-second terminal wait, uncertain-handle quarantine,
+late-callback rejection and restart-required readiness. The missing-callback reproducer first
+FAILed (one test); the fix and nearest lifecycle gate PASSed (31 tests, zero failures/errors/skips).
+Primary now owns the coordinated final adapter/coordinator wiring on this integration branch;
+owner worktrees and histories are untouched. The alternate security combined branch is not
+imported wholesale. Quaternary owns provisioning and the
 exclusive physical-device slot; Rhence coordinates acceptance. Primary runs no ADB commands
 during that slot.
 
@@ -113,6 +117,46 @@ Debug v2 signature passed; release v3 signature passed using the explicit JDK17 
 Actual AAPT identity passed: `ph.merd.akma`, Akma, minSdk 30, targetSdk 36. A failed redundant
 APK copy was removed after ENOSPC; no incomplete artifact was handed off as verified.
 
+The final scoped adapter changes add constant actionable provisioning-failure notices, invalidate
+verification receipts after runtime/model-load failures, retain the owner's tested prompt helper
+and security regressions, and separate initialization from generation deadlines. The app uses
+conservative 900-second initialization and 240-second generation bounds; those limits are not
+performance measurements. Cancellation cleanup has its own five-second quarantine bound.
+Constructor compatibility is preserved by appending the optional initialization deadline.
+The full combined gate on the production tree committed as
+`3a3071139b6474c8ba393ccdf800e98be55c2d5a` PASSed:
+
+```sh
+./gradlew --no-daemon --max-workers=2 \
+  -Pkotlin.compiler.execution.strategy=in-process -Pkotlin.incremental=false \
+  :app:assembleRelease :app:testDebugUnitTest :app:lintDebug :app:lintRelease
+```
+
+Observed exit 0, `BUILD SUCCESSFUL in 4m 21s`: 280 tests across 25 XML suites,
+zero failures/errors/skips; debug and release lint each zero errors/fatal findings and
+12 warnings. Actual debug/release merged-manifest guards PASS; actionlint, Bash syntax,
+whitespace and 20-commit redacted Gitleaks scan PASS. The production tree matches the tested
+source; no source changed between the gate and commit. The APK's optional AGP version-control
+metadata reports `NO_VALID_GIT_FOUND` for this worktree, so provenance is recorded by the
+source-tree check and this external SHA ledger, not claimed as embedded commit metadata.
+
+The verified immutable artifact is
+`~/.cache/akma-releases/3a30711/akma-model-release-development-signed.apk`:
+1,670,830,058 bytes, SHA-256
+`3e9fe18697409195323af83c05286109b68d0bbc13622643c23321b3889672d0`.
+JDK17 apksigner v3 verification PASS. Actual AAPT identity PASS (`ph.merd.akma`, minSdk 30,
+targetSdk 36); decoded compiled manifest `--release` security guard PASS. Embedded model
+size/header/SHA, uncompressed asset and ARM64 ELF packaging PASS. This non-debuggable release
+variant uses the existing development signing key; production distribution signing remains
+unresolved. Only owned redundant unsigned/model-intermediate outputs were reclaimed after
+verification; both earlier handed-off artifacts remain intact.
+
+This artifact supersedes the initial candidate for final acceptance. Device inference for
+this exact SHA is NOT TESTED by Primary. Synchronous JNI cancellation/start/close calls cannot
+be forcibly interrupted by a coroutine: the five-second cleanup bound applies to waiting for
+a terminal callback after `cancelProcess` returns. Native abort, permanent JNI hangs and
+process-wide OOM may still require force stop. No test establishes those native guarantees.
+
 The initial debug APK was handed to Quaternary/Rhence for physical testing. Miguel confirms
 testing is in progress. Real offline generation, two-step confirmation, editing/copying,
 native cancellation and second-request recovery on this exact artifact remain NOT TESTED
@@ -120,16 +164,27 @@ by Primary until actual acceptance evidence is available. Previous Camon measure
 older UI-only Pova results do not validate this artifact. Native recovery changes require
 a newly hashed model-enabled APK and repeat acceptance.
 
+## Final-source hosted gate
+
+Both jobs PASS at source `3a3071139b6474c8ba393ccdf800e98be55c2d5a`:
+[push run 37981023799](https://github.com/merd-labs/akma/actions/runs/37981023799) and
+[PR run 37981028941](https://github.com/merd-labs/akma/actions/runs/37981028941).
+PR #28 is now MERGED into the integration branch by the preserved Git merge
+`9157656e93226e914a2c90c27b13b9c67ccaf634`; this is not a merge into main.
+Remote main remains `b31a6f045d75bf686b6a6aaeabb721937c57721f`.
+PR #27 remains draft and mergeable. This subsequent ledger-only commit has its own hosted
+runs; report their actual outcome separately rather than borrowing the source-head result.
+
 ## Remaining acceptance and integration order
 
-1. Integrate the verified final native-recovery dependency and scoped security follow-up.
-2. Run full combined unit tests, build, lint, manifest, whitespace and secret checks.
-3. Build and verify the new exact model-enabled artifact, including release signing identity.
+1. Preserve the verified combined source and frozen model-enabled artifact above.
+2. Inspect the final ledger-only commit hosted jobs to complete the current-head CI handoff.
+3. Decide production distribution signing with Miguel; the current candidate is development-signed.
 4. Quaternary/Rhence complete exclusive Pova 2 API30 radios-off generation, confirmation,
    cancel/error/retry, edit/manual-copy and session-clear acceptance; record matching APK SHA.
 5. Observe both hosted jobs on the final integration SHA. Keep #27 draft until gates complete.
 6. Miguel/MERD reviews and approves the one integration PR before a main merge. Do not merge
    the incompatible original UI/runtime/protocol stacks independently afterward.
 
-Physical model suitability, final recovery behavior, final combined CI and production signing
-remain open. Source compilation or successful model packaging alone is not a release PASS.
+Physical model suitability and final recovery acceptance, current-head hosted CI and production
+distribution signing remain open. Source compilation or successful model packaging alone is not a release PASS.
