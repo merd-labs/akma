@@ -43,11 +43,11 @@ internal fun ReplyState.displayedConfirmation(): DraftConfirmation? {
 }
 
 /** Check live state as well as enabled widgets: another surface can consume the request first. */
-internal fun ReplyCoordinator.selectDraft(actionId: String, tone: ReplyTone) {
+internal fun ReplyCoordinator.selectDraft(actionId: String, tone: ReplyTone, instruction: String = "") {
     val current = state.value
     val canonical = ActionCatalog.action(actionId) ?: return
     if (!current.canChooseDraft || current.analysis?.actions?.singleOrNull { it.id == actionId } != canonical) return
-    draft(actionId, tone)
+    draft(actionId, tone, instruction)
 }
 
 internal fun ReplyCoordinator.confirmDisplayedDraft(displayedId: Long) {
@@ -71,11 +71,14 @@ internal fun isObscuredTouch(flags: Int): Boolean =
     flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED) != 0
 
 /** Protect consequential controls from full and partial obscuration, including Compose AndroidView hosts. */
-internal fun obscuredAwareButton(context: Context, label: String): Button = object : Button(context) {
+internal fun obscuredAwareButton(context: Context, label: String, blocked: () -> Unit = {}): Button = object : Button(context) {
+    private var warned = false
     override fun onFilterTouchEventForSecurity(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) warned = false
         if (isObscuredTouch(event.flags)) {
             cancelPendingInputEvents()
             isPressed = false
+            if (!warned) { warned = true; blocked() }
             return false
         }
         return super.onFilterTouchEventForSecurity(event)
@@ -86,9 +89,10 @@ internal fun obscuredAwareButton(context: Context, label: String): Button = obje
     filterTouchesWhenObscured = true
 }
 
-internal fun confirmationButton(context: Context): Button = obscuredAwareButton(context, "Confirm and generate draft")
+internal fun confirmationButton(context: Context, blocked: () -> Unit = {}): Button =
+    obscuredAwareButton(context, "Confirm and generate draft", blocked)
 
-internal fun copyButton(context: Context): Button = obscuredAwareButton(context, "Copy draft")
+internal fun copyButton(context: Context, blocked: () -> Unit = {}): Button = obscuredAwareButton(context, "Copy draft", blocked)
 
 fun ReplyState.statusText(): String = when (phase) {
     ReplyPhase.ModelUnavailable -> "Model unavailable. No local AI is configured."

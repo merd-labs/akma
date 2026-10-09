@@ -98,7 +98,14 @@ fun ProcessingCard(title: String, body: String, onCancel: (() -> Unit)?, modifie
  * so the user can check Akma read the right thing. [source] adds the provenance caption.
  */
 @Composable
-fun IntentCard(categoryId: String, message: String, source: AnalysisSource, modifier: Modifier = Modifier) {
+fun IntentCard(
+    categoryId: String,
+    message: String,
+    source: AnalysisSource,
+    modifier: Modifier = Modifier,
+    language: String? = null,
+    demo: Boolean = false,
+) {
     val category = CategoryPresentation.category(categoryId)
     Column(
         modifier
@@ -111,7 +118,10 @@ fun IntentCard(categoryId: String, message: String, source: AnalysisSource, modi
         Row(horizontalArrangement = Arrangement.spacedBy(AkmaSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
             IconTile(category?.icon ?: R.drawable.ic_akma_message, 40.dp, 22.dp, AkmaRadius.sm)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.akma_detected_intent), style = AkmaTheme.type.caption, color = AkmaTheme.colors.textSecondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.akma_detected_intent), style = AkmaTheme.type.caption, color = AkmaTheme.colors.textSecondary)
+                    language?.let { AkmaTag(it, TagVariant.Neutral, icon = R.drawable.ic_akma_message) }
+                }
                 Text(
                     category?.let { stringResource(it.label) } ?: stringResource(R.string.akma_category_other),
                     style = AkmaTheme.type.titleS,
@@ -120,7 +130,8 @@ fun IntentCard(categoryId: String, message: String, source: AnalysisSource, modi
             }
         }
         QuotedMessage(message, maxLines = 2)
-        CategoryPresentation.sourceCaption(source)?.let {
+        // Provenance: demo data is never presented as model output.
+        (if (demo) R.string.akma_demo_caption else CategoryPresentation.sourceCaption(source))?.let {
             Text(stringResource(it), style = AkmaTheme.type.caption, color = AkmaTheme.colors.textSecondary)
         }
     }
@@ -173,6 +184,7 @@ fun MessageInputCard(
     onPaste: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    inputModifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(AkmaRadius.md)
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(AkmaSpacing.xs)) {
@@ -186,7 +198,7 @@ fun MessageInputCard(
             enabled = enabled,
             textStyle = AkmaTheme.type.bodyL.copy(color = AkmaTheme.colors.textPrimary),
             cursorBrush = SolidColor(AkmaTheme.colors.bgBrandStrong),
-            modifier = Modifier
+            modifier = inputModifier
                 .fillMaxWidth()
                 .heightIn(min = 96.dp)
                 .clip(shape)

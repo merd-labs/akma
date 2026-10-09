@@ -187,3 +187,17 @@ fun PreviewBadge(modifier: Modifier = Modifier) {
             .padding(horizontal = 10.dp, vertical = 4.dp),
     )
 }
+
+/** Shown on every panel while the debug demo engine runs, so sample replies are never mistaken for AI output. */
+@Composable
+fun DemoBadge(modifier: Modifier = Modifier) {
+    Text(
+        stringResource(R.string.akma_demo_badge),
+        style = AkmaTheme.type.labelS,
+        color = AkmaTheme.colors.textOnBrand,
+        modifier = modifier
+            .clip(AkmaRadius.full)
+            .background(Color(0xFFB45309))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    )
+}

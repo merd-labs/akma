@@ -24,6 +24,15 @@ import ph.merd.akma.safety.SafetyRejection
 import ph.merd.akma.safety.SafetyResult
 import ph.merd.akma.safety.UnsafeModelOutputException
 
+private const val COPY_REVIEW_NOTICE = "Review draft formatting before copying."
+
+/** Copy the exact reviewed text only. Advisory flags do not establish semantic correctness. */
+private fun safeForCopy(draft: String): Boolean {
+    if (draft.isBlank() || draft.length > ReplyValidation.MAX_TEXT_LENGTH) return false
+    val result = ModelOutputSafety.sanitizeDraft(draft, ReplyValidation.MAX_TEXT_LENGTH)
+    return result is SafetyResult.Accepted && result.text == draft
+}
+
 enum class ReplyPhase {
     ModelUnavailable, ModelLoading, Ready, Analyzing, ChoosingAction, Drafting, Editing, Copied, Error,
 }
@@ -43,7 +52,8 @@ data class ReplyState(
     val pendingConfirmation: DraftConfirmation? = null,
 ) {
     val busy: Boolean get() = phase in setOf(ReplyPhase.ModelLoading, ReplyPhase.Analyzing, ReplyPhase.Drafting)
-    val canCopy: Boolean get() = pendingConfirmation == null && phase in setOf(ReplyPhase.Editing, ReplyPhase.Copied) && draft.isNotBlank()
+    val canCopy: Boolean get() = pendingConfirmation == null &&
+        phase in setOf(ReplyPhase.Editing, ReplyPhase.Copied) && safeForCopy(draft)
 }
 
 /** Call UI methods on the main thread. One process owns one coordinator and one engine. */
@@ -114,10 +124,14 @@ class ReplyCoordinator(
         }
     }
 
-    /** An action tap requests confirmation. It never starts inference on its own. */
-    fun draft(actionId: String, tone: ReplyTone) {
+    /**
+     * An action tap requests confirmation. It never starts inference on its own.
+     * [instruction] is an optional refine request (e.g. "Make it shorter."); it is staged and shown for
+     * confirmation like any other draft request.
+     */
+    fun draft(actionId: String, tone: ReplyTone, instruction: String = "") {
         if (!initialized || state.value.phase !in setOf(ReplyPhase.ChoosingAction, ReplyPhase.Editing, ReplyPhase.Copied)) return
-        val request = DraftRequest(AnalyzeRequest(state.value.message), actionId, tone)
+        val request = DraftRequest(AnalyzeRequest(state.value.message), actionId, tone, userInstruction = instruction)
         val analysis = state.value.analysis ?: return
         if (!validate(ReplyValidation.validate(request, analysis.actions))) return
         if (state.value.pendingConfirmation?.request == request) return
@@ -168,7 +182,11 @@ class ReplyCoordinator(
             mutableState.value = state.value.copy(notice = "Draft exceeds 1,500 characters.")
             return
         }
-        mutableState.value = state.value.copy(phase = ReplyPhase.Editing, draft = draft, notice = null)
+        mutableState.value = state.value.copy(
+            phase = ReplyPhase.Editing,
+            draft = draft,
+            notice = if (draft.isNotBlank() && !safeForCopy(draft)) COPY_REVIEW_NOTICE else null,
+        )
     }
 
     fun copied() {

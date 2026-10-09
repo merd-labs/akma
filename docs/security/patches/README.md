@@ -12,3 +12,4 @@ Apply with `git apply --check <patch>` first, then `git apply <patch>` on a bran
 
 Not covered by a patch (owner action only): Confirm/Cancel UI (bridge) must call `confirmDraft(displayedId)` from a separate control with
 `filterTouchesWhenObscured = true`; `app/build.gradle.kts` release build type with `isDebuggable = false` (Gradle is Miguel's).
+| `ui-draft-review-notes.patch` | UI (Danielle, #31) | `feat/ui-live-integration` | `git apply --check` on #31 head `583c469`; compiled and UI tests 40/40 (incl. new mapper test) in a scratch composite | shows advisory notes under a draft when `DraftGrounding` finds ungrounded details, commitments or invented unavailability (non-blocking) |

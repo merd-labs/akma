@@ -20,6 +20,10 @@ data class JourneyPanelUi(
     val canCancelProcessing: Boolean,
     val canRetry: Boolean = false,
     val canStartOver: Boolean = false,
+    /** Regenerate / Shorter / More formal: only with a draft, an action to refine, and nothing busy. */
+    val canRefine: Boolean = false,
+    /** Debug demo engine: every result is labelled as demo data, never as AI output. */
+    val demo: Boolean = false,
     /** Coordinator notice, shown verbatim. Null when nothing needs saying. */
     val notice: String? = null,
 )
@@ -28,7 +32,7 @@ enum class PanelStatus { ModelUnavailable, LoadingModel, Error }
 
 data class InputUi(val message: String, val maxLength: Int, val canAnalyze: Boolean)
 
-data class IntentUi(val categoryId: String, val message: String, val source: AnalysisSource)
+data class IntentUi(val categoryId: String, val message: String, val source: AnalysisSource, val language: String? = null)
 
 data class ActionUi(val id: String, val label: String)
 
@@ -49,6 +53,7 @@ data class ConfirmationUi(
     val tone: ReplyTone,
     val message: String,
     val valid: Boolean = true,
+    val refine: RefineKind? = null,
 )
 
 sealed interface ReplyUi {
@@ -59,17 +64,37 @@ sealed interface ReplyUi {
 enum class CopyUi { Hidden, Disabled, Ready, Copied }
 
 /**
+ * Figma Refine buttons. They re-stage the same action and tone with an instruction, which the user
+ * confirms like any other draft request. [instruction] is what the engine receives.
+ */
+enum class RefineKind(val instruction: String) {
+    Regenerate(""),
+    Shorter("Make it shorter."),
+    MoreFormal("Make it more formal."),
+    ;
+
+    companion object {
+        fun of(instruction: String): RefineKind? = entries.firstOrNull { it.instruction == instruction && it != Regenerate }
+    }
+}
+
+/**
  * Maps coordinator state to panel content.
  * [selectedTone] and [lastSelectedActionId] are UI-held choices; a pending confirmation overrides both
  * and locks the choices, so the staged action and tone cannot change until the user cancels.
  * Analysis reaching ReplyState is already normalized, so its action labels are catalog labels.
  */
-fun ReplyState.toPanelUi(selectedTone: ReplyTone, lastSelectedActionId: String?): JourneyPanelUi {
+fun ReplyState.toPanelUi(
+    selectedTone: ReplyTone,
+    lastSelectedActionId: String?,
+    language: String? = null,
+    demo: Boolean = false,
+): JourneyPanelUi {
     val pending = pendingConfirmation
     val tone = pending?.request?.tone ?: selectedTone
     val selectedId = pending?.action?.id ?: lastSelectedActionId
     val result = analysis
-    val intent = result?.let { IntentUi(it.category, message, it.source) }
+    val intent = result?.let { IntentUi(it.category, message, it.source, language) }
     fun choice(enabled: Boolean) = result?.let { r ->
         ChoiceUi(
             actions = r.actions.map { ActionUi(it.id, it.label) },
@@ -92,6 +117,7 @@ fun ReplyState.toPanelUi(selectedTone: ReplyTone, lastSelectedActionId: String?)
         canRetry = canRetryLocalModel,
         canStartOver = !busy && pending == null && phase in setOf(ReplyPhase.ChoosingAction, ReplyPhase.Editing, ReplyPhase.Copied),
         notice = notice?.takeIf { it.isNotBlank() && phase != ReplyPhase.Copied },
+        demo = demo,
     )
     return when (phase) {
         ReplyPhase.ModelUnavailable -> base.copy(
@@ -113,6 +139,7 @@ fun ReplyState.toPanelUi(selectedTone: ReplyTone, lastSelectedActionId: String?)
                     tone = it.request.tone,
                     message = it.request.original.message,
                     valid = displayedConfirmation()?.id == it.id,
+                    refine = RefineKind.of(it.request.userInstruction),
                 )
             },
             copy = CopyUi.Disabled,
@@ -127,6 +154,7 @@ fun ReplyState.toPanelUi(selectedTone: ReplyTone, lastSelectedActionId: String?)
             intent = intent,
             choice = choice(enabled = canChooseDraft),
             reply = ReplyUi.Draft(draft),
+            canRefine = canChooseDraft && selectedId != null && result?.actions?.any { it.id == selectedId } == true,
             copy = when {
                 !canCopy -> CopyUi.Disabled
                 phase == ReplyPhase.Copied -> CopyUi.Copied
