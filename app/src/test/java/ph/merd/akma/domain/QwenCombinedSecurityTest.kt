@@ -2,6 +2,7 @@ package ph.merd.akma.domain
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -128,5 +129,30 @@ class QwenCombinedSecurityTest {
             assertEquals(ReplyPhase.Error, replies.state.value.phase)
             assertNull(replies.state.value.analysis)
         }
+    }
+
+    @Test fun slowModelLoadUsesItsOwnLongerTimeoutAndStillBecomesReady() = runTest {
+        val engine = object : LocalReplyEngine {
+            override suspend fun initialize(): Result<Unit> { kotlinx.coroutines.delay(90_000); return Result.success(Unit) }
+            override suspend fun analyze(request: AnalyzeRequest) = Result.failure<AnalysisResult>(IllegalStateException())
+            override suspend fun draft(request: DraftRequest) = Result.failure<String>(IllegalStateException())
+        }
+        val replies = ReplyCoordinator(engine, backgroundScope, StandardTestDispatcher(testScheduler), timeoutMillis = 60_000, initTimeoutMillis = 300_000)
+        replies.initialize(); runCurrent()
+        advanceTimeBy(95_000); runCurrent()
+        assertEquals(ReplyPhase.Ready, replies.state.value.phase)
+    }
+
+    @Test fun generationStillTimesOutAtItsOwnLimit() = runTest {
+        val engine = Engine().apply { analysis = Result.success(analysis()) }
+        val slow = object : LocalReplyEngine by engine {
+            override suspend fun analyze(request: AnalyzeRequest): Result<AnalysisResult> { kotlinx.coroutines.delay(120_000); return engine.analysis }
+        }
+        val replies = ReplyCoordinator(slow, backgroundScope, StandardTestDispatcher(testScheduler), timeoutMillis = 60_000, initTimeoutMillis = 300_000)
+        replies.initialize(); runCurrent()
+        replies.setMessage("hello"); replies.analyze(); runCurrent()
+        advanceTimeBy(61_000); runCurrent()
+        assertEquals(ReplyPhase.Error, replies.state.value.phase)
+        assertEquals("Local processing timed out. Retry or cancel.", replies.state.value.notice)
     }
 }

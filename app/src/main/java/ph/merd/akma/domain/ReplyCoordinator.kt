@@ -46,6 +46,8 @@ class ReplyCoordinator(
     private val scope: CoroutineScope,
     private val worker: CoroutineDispatcher = Dispatchers.IO,
     private val timeoutMillis: Long = 60_000,
+    /** Model load (copy, hash, cold native load) is far slower than one generation; null keeps [timeoutMillis]. */
+    private val initTimeoutMillis: Long? = null,
     allowedActionIds: Set<String> = ActionCatalog.actionIds,
 ) {
     private val allowedActionIds = allowedActionIds.toSet()
@@ -190,7 +192,7 @@ class ReplyCoordinator(
         )
         operation = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                val result = withTimeout(timeoutMillis) {
+                val result = withTimeout(if (phase == ReplyPhase.ModelLoading) initTimeoutMillis ?: timeoutMillis else timeoutMillis) {
                     // Serialize even if a cancelled native call takes time to return.
                     engineMutex.withLock { withContext(worker) { work() } }
                 }
