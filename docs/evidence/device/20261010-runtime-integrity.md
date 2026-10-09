@@ -41,11 +41,13 @@ PR #26 head `ae7f0946c6a6be26fd159650900da6769eb81008` pins the Qwen filename/re
 | First bundled import on phone | NOT TESTED | Model was already provisioned by the earlier installation |
 | Cold/warm initialization | FAIL / PASS | Cold native initialization 62,915 ms exceeds 60,000 ms coordinator limit; user reached Ready after Retry; warm native initialization 1,469 ms |
 | Ready after process restart | NOT TESTED | Cold launch was tested; a second full restart gate remains pending |
-| Three English/Filipino/Taglish offline attempts | NOT TESTED | No model generation attempted |
-| Actual action/tone/output fidelity | NOT TESTED | No model output observed |
+| Three English/Filipino/Taglish offline attempts | NOT TESTED | First English draft confirmed; Filipino and Taglish completion not yet observed |
+| First English synthetic draft and fidelity | PASS | User confirms Professional / Reschedule intent preserved without invented commitments; actual 115-character reply retained privately |
+| Filipino and Taglish fidelity | NOT TESTED | Pending manual attempts |
 | Import interruption and corruption recovery on phone | NOT TESTED | Unit fixtures do not establish physical behavior |
 | Initialization memory and thermal snapshots | PASS | Post-cold-init PSS 2,207,090 kB; RSS 2,293,032 kB; thermal status 0; these are sampled values, not peaks |
-| Generation latency and failures | NOT TESTED | No completed generation has been observed yet |
+| First native analysis/draft latency | PASS | Analysis generation 59,588 ms; draft generation 55,871 ms; both completed and a draft is visible |
+| Repeated-generation stability | NOT TESTED | One confirmed draft cannot establish repeated stability |
 | Same frozen APK on Camon 30 | NOT TESTED | PR #26's earlier CL6/API36 generation used a different APK; mobile-data disablement was not recorded |
 | Native Windows tooling execution | NOT TESTED | PowerShell-on-Ubuntu tests are separate |
 
@@ -114,4 +116,27 @@ The real CPU native initialization log reported 62,915 ms. At 19:24:51 UTC, proc
 
 The cold startup usability gate fails: native work alone exceeds the configured initialization deadline. The runtime/domain owners were notified in [PR #27](https://github.com/merd-labs/akma/pull/27#issuecomment-6087828950) to add a separate bounded initialization deadline while retaining the generation deadline. No coordinator/runtime source is changed by this evidence branch. A replacement APK incorporating that fix and PR #28 needs a new hash and its own physical gate.
 
-No first-token latency, token throughput, GPU acceleration, completed response, repeated-generation stability or 4 GB compatibility is established by native initialization. Actual synthetic prompt/output contents remain private.
+Native initialization alone establishes no first-token latency, token throughput, GPU acceleration, response success, repeated-generation stability or 4 GB compatibility. The separately observed first response is recorded below. Actual synthetic prompt/output contents remain private.
+
+## First genuine offline draft
+
+With offline radios explicitly reverified, Miguel confirms a generated draft appeared after manual Analyze, Reschedule / Professional selection and separate Confirm. Native generation timings were 59,588 ms for analysis (210 characters logged) and 55,871 ms for drafting (115 characters logged). Each timing covers its native operation; their sum is not an end-to-end user-journey latency because user interaction occurred between operations. First-token latency and token count were not exposed.
+
+The actual 115-character draft was captured privately from Akma-owned UI nodes, matching the native draft's character count. Only Akma nodes were retained; no clipboard contents or external application text were retained. The visible input differs from the exact requested fixture. Miguel separately confirms it was synthetic English and that the Professional / Reschedule reply preserves intent without invented availability or commitments. This is a human-observed fidelity PASS, not a guarantee for future outputs. Input, exact output and selected controls are retained only in private evidence, never CI or committed logs.
+
+At 19:33:10 UTC, observed process PSS was 1,992,481 kB and RSS 2,090,348 kB; thermal status 0. At 19:36:49 UTC, PSS was 2,097,002 kB and RSS 2,193,284 kB; thermal status 0. These are snapshots rather than peak memory. Native analysis was close to the initial artifact's 60,000 ms deadline. No native crash or OOM was observed in this completed attempt; this does not establish repeated-run reliability.
+
+Evidence commit `7ac4eec33236b10f1bfd43486ca8ad32ed680dc9` hosted Android and documentation checks both PASS: [push](https://github.com/merd-labs/akma/actions/runs/37980893824), [PR](https://github.com/merd-labs/akma/actions/runs/37980900012).
+
+## Next frozen release candidate — separate gate
+
+Primary published source `3a3071139b6474c8ba393ccdf800e98be55c2d5a`, a non-debuggable, development-signed release APK. Quaternary independently streamed and verified its embedded artifact and complete APK:
+
+- APK bytes: 1,670,830,058; SHA-256: `3e9fe18697409195323af83c05286109b68d0bbc13622643c23321b3889672d0`.
+- Embedded pinned model: exact size/header/SHA and uncompressed storage PASS; ARM64 model JNI ELF PASS.
+- JDK17 apksigner: v3 verification PASS; signer SHA-256 `a7cabcfe6ca089204bed0b79e2ac0be6e2d98e3eb337ea11f9c043342cd55cff`, matching the installed candidate.
+- AAPT: Akma / `ph.merd.akma` / minSdk 30 / targetSdk 36 PASS. Other transitive ABI entries do not establish model JNI support for those ABIs.
+- Exact source inspection confirms separate initialization 900,000 ms and generation 240,000 ms deadlines; these are conservative limits, not measured performance.
+- Exact-head hosted Android/documentation CI: PASS. Primary reports combined 280 local tests, debug/release lint and release assembly PASS; those local results are owner-reported, not rerun by Quaternary.
+
+Physical installation, startup, offline inference, lifecycle/cancellation/retry, and repeated generation for this new release SHA remain NOT TESTED. None of the earlier debug APK's results are substituted for the release gate. Its installation will wait until the current manual test has ended.
