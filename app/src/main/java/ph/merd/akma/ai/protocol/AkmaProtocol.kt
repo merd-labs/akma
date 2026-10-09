@@ -12,15 +12,15 @@ import ph.merd.akma.domain.DraftRequest
 
 object AkmaProtocol {
 
-    val SYSTEM_PROMPT = """You are Akma, a helpful, intelligent assistant. 
-You extract intentions from messages and write replies from the user's perspective. 
+    val SYSTEM_PROMPT = """You are Akma, a helpful, intelligent assistant.
+You extract intentions from messages and write replies from the user's perspective.
 Never invent facts, dates, or commitments. Keep output concise and respect the requested language (English, Tagalog, or Taglish)."""
 
     fun compileAnalysisPrompt(request: AnalyzeRequest): String {
         val prompt = StringBuilder()
         prompt.append("Analyze the following message. Identify its category and a short summary of its purpose. ")
         prompt.append("The category MUST be exactly one of: interview_invitation, meeting, reschedule_request, follow_up, complaint, casual, other.\n\n")
-        
+
         if (request.history.isNotBlank()) {
             prompt.append("Conversation History:\n").append(request.history).append("\n\n")
         }
@@ -36,17 +36,17 @@ Never invent facts, dates, or commitments. Keep output concise and respect the r
             if (jsonText.isEmpty() && !rawModelText.contains("{")) {
                 return Result.success(ActionCatalog.otherAnalysis())
             }
-            
+
             val jsonElement = JsonParser.parseString("{$jsonText}")
             val json = if (jsonElement.isJsonObject) jsonElement.asJsonObject else JsonObject()
-            
+
             val rawCategory = if (json.has("category") && !json.get("category").isJsonNull) {
                 json.get("category").asString
             } else {
                 "other"
             }
             var category = rawCategory.lowercase()
-            
+
             val canonical = ActionCatalog.canonicalCategory(category)
             if (canonical == null) {
                 category = "other"
@@ -59,18 +59,18 @@ Never invent facts, dates, or commitments. Keep output concise and respect the r
             } else {
                 "Choose how to respond."
             }
-            
+
             var summary = rawSummary
             if (summary.length > 200) {
                 summary = summary.substring(0, 200) + "..."
             }
-            
+
             if (category == "other") {
                 return Result.success(ActionCatalog.otherAnalysis())
             }
 
             val actions = ActionCatalog.actionsFor(category).take(3)
-            
+
             Result.success(
                 AnalysisResult(
                     category = category,
@@ -91,26 +91,26 @@ Never invent facts, dates, or commitments. Keep output concise and respect the r
         val prompt = StringBuilder()
         prompt.append("Write a reply to the following message. ")
         prompt.append("Write from the recipient's perspective. ")
-        
+
         val action = ActionCatalog.action(request.selectedActionId)
         if (action != null) {
             prompt.append("The reply should: ${action.label}. ")
         }
-        
+
         when (request.selectedActionId) {
             "reschedule" -> prompt.append("Ask the sender for a different interview time. Do not say you are available Friday at 10 or accept that time. ")
             "clarify", "ask_agenda", "ask_to_clarify" -> prompt.append("Ask for details before agreeing to anything. ")
             "decline" -> prompt.append("Politely decline without an invented excuse. ")
         }
-        
+
         prompt.append("Tone: ${request.tone.name.lowercase()}. ")
-        
+
         if (request.userInstruction.isNotBlank()) {
             prompt.append("Additional instruction: ${request.userInstruction}. ")
         }
-        
+
         prompt.append("Do NOT include any preamble, introduction, or quotes. Output ONLY the exact text of the reply.\n\n")
-        
+
         if (request.original.history.isNotBlank()) {
             prompt.append("Conversation History:\n").append(request.original.history).append("\n\n")
         }
@@ -121,15 +121,15 @@ Never invent facts, dates, or commitments. Keep output concise and respect the r
     fun validateParsedReply(rawModelText: String): Result<String> {
         var cleanText = rawModelText.substringBefore("<|im_end|>").trim()
         cleanText = cleanText.removePrefix("\"").removeSuffix("\"").trim()
-        
+
         if (cleanText.isEmpty()) {
             return Result.failure(IllegalStateException("Generated reply is empty."))
         }
-        
+
         if (cleanText.length > 1500) {
             return Result.failure(IllegalStateException("Generated reply is too long."))
         }
-        
+
         return Result.success(cleanText)
     }
 }

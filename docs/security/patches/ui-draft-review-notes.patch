@@ -8,18 +8,18 @@ index 44de1d0..060b061 100644
  import ph.merd.akma.domain.ReplyValidation
 +import ph.merd.akma.safety.DraftGrounding
 +import ph.merd.akma.safety.GroundingReport
- 
+
  /** What the panel shows. Built only from coordinator state; it never invents text. */
  data class JourneyPanelUi(
 @@ -53,7 +55,8 @@ data class ConfirmationUi(
- 
+
  sealed interface ReplyUi {
      data object Writing : ReplyUi
 -    data class Draft(val text: String) : ReplyUi
 +    /** [review] is advisory only (see DraftGrounding): it never blocks Copy and makes no faithfulness claim. */
 +    data class Draft(val text: String, val review: GroundingReport = GroundingReport(emptySet(), emptyList())) : ReplyUi
  }
- 
+
  enum class CopyUi { Hidden, Disabled, Ready, Copied }
 @@ -126,7 +129,7 @@ fun ReplyState.toPanelUi(selectedTone: ReplyTone, lastSelectedActionId: String?)
          ReplyPhase.Editing, ReplyPhase.Copied -> base.copy(
@@ -51,7 +51,7 @@ index 2ef547f..58f201e 100644
          }
      }
  }
- 
+
 +/** Plain, non-blocking reminders shown under a draft. They mention that something needs checking, never that it is wrong. */
 +@Composable
 +private fun ReviewNotes(draft: ReplyUi.Draft) {
