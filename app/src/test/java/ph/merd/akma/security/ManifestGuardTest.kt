@@ -22,7 +22,7 @@ class ManifestGuardTest {
         .readBytes().toString(Charsets.UTF_8)
 
     private fun javaBinary(): String {
-        val exe = if (System.getProperty("os.name", "").startsWith("Windows", ignoreCase = true)) "java.exe" else "java"
+        val exe = if (requireNotNull(System.getProperty("os.name", "")).startsWith("Windows", ignoreCase = true)) "java.exe" else "java"
         return File(requireNotNull(System.getProperty("java.home")), "bin/$exe").path
     }
 
@@ -112,6 +112,27 @@ class ManifestGuardTest {
         cases.forEach { (name, case) ->
             val failures = byFile.getValue(name)
             assertTrue("$name: expected a FAIL containing '${case.second}' but got $failures", failures.any { case.second in it })
+        }
+    }
+
+    @Test fun compiledSignaturePermissionAcceptsOnlyEquivalentDecimalAndHexValues() {
+        val files = listOf("signature", "2", "0x2", "0X00000002").mapIndexed { index, level ->
+            temp("signature-$index", cleanText.replace("android:protectionLevel=\"signature\"", "android:protectionLevel=\"$level\""))
+        }
+        val result = guard(*files.map { it.path }.toTypedArray())
+        assertEquals(result.stdout + result.stderr, 0, result.exit)
+    }
+
+    @Test fun customPermissionRejectsWeakLevelsFlagsAndSignatureLookalikes() {
+        val values = listOf("0", "1", "0x3", "4", "0x12", "signatureOrSystem", "signature|privileged", "not-signature", "0xFFFFFFFFFFFFFFFFF", "")
+        val files = values.mapIndexed { index, level ->
+            temp("weak-signature-$index", cleanText.replace("android:protectionLevel=\"signature\"", "android:protectionLevel=\"$level\""))
+        }
+        val result = guard(*files.map { it.path }.toTypedArray())
+        assertEquals(result.stdout + result.stderr, 1, result.exit)
+        val failures = failuresByManifest(result.stdout)
+        files.forEach { file ->
+            assertTrue(result.stdout, failures.getValue(file.name).any { "[custom-permission]" in it })
         }
     }
 

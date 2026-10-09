@@ -304,11 +304,25 @@ public final class ManifestGuard {
         for (Element definition : children(manifest, "permission")) {
             String level = attr(definition, "protectionLevel");
             String name = attr(definition, "name");
-            if (level == null || !level.contains("signature")) {
+            if (!isSignatureOnly(level)) {
                 report.failures.add("[custom-permission] <permission " + name + "> has protectionLevel '" + level
                     + "'; custom permissions must be signature-level so other apps cannot hold them.");
             }
         }
+    }
+
+    /** Compiled APK readers render Android's PROTECTION_SIGNATURE (2) as a numeric value. */
+    private static boolean isSignatureOnly(String level) {
+        if (level == null) return false;
+        String value = level.trim();
+        if (value.equals("signature")) return true;
+        try {
+            if (value.matches("(?i)0x[0-9a-f]+")) return Long.parseLong(value.substring(2), 16) == 2;
+            if (value.matches("[0-9]+")) return Long.parseLong(value, 10) == 2;
+        } catch (NumberFormatException ignored) {
+            // Malformed or oversized values never expand permission approval.
+        }
+        return false;
     }
 
     private static void checkApplication(Element application, boolean release, Report report) {
