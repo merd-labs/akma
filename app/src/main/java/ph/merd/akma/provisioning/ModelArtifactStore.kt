@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** One managed private directory. No network access, model-sized buffers, or external paths. */
@@ -31,8 +32,14 @@ class ModelArtifactStore internal constructor(
         )
     },
     private val isNoSpace: (IOException) -> Boolean = { false },
+    private val originalFilename: Boolean = false,
+    private val identity: ((File) -> ModelFileIdentity?)? = null,
 ) {
     private val mutex = Mutex()
+    private var cached: CachedVerification? = null
+
+    /** Native-load failures can force full verification before a retry. No files are deleted. */
+    suspend fun invalidateVerification() = withContext(dispatcher) { mutex.withLock { cached = null } }
 
     suspend fun resolveVerified(spec: ModelArtifactSpec): ModelProvisionResult = locked(spec) {
         verify(destination(spec), spec, reused = true)
@@ -91,6 +98,7 @@ class ModelArtifactStore internal constructor(
             currentCoroutineContext().ensureActive()
             // The rename is the commit point. Never publish a partial file or fall back to copying.
             publish(temporary!!, destination)
+            remember(destination, spec)
             ModelProvisionResult.Verified(VerifiedModel(destination, spec, reused = false))
         } catch (error: IOException) {
             if (error is AtomicMoveNotSupportedException) {
@@ -139,10 +147,17 @@ class ModelArtifactStore internal constructor(
     }
 
     private suspend fun verify(file: File, spec: ModelArtifactSpec, reused: Boolean): ModelProvisionResult {
+        val previous = cached
+        cached = null
         if (!safePath(file)) return failure(ProvisionFailure.UNSAFE_PATH)
         if (!Files.exists(file.toPath(), LinkOption.NOFOLLOW_LINKS)) return failure(ProvisionFailure.MODEL_MISSING)
         if (!Files.isRegularFile(file.toPath(), LinkOption.NOFOLLOW_LINKS)) return failure(ProvisionFailure.UNSAFE_PATH)
         if (file.length() != spec.sizeBytes) return failure(ProvisionFailure.SIZE_MISMATCH)
+        val before = identity?.invoke(file)
+        if (before != null && previous == CachedVerification(spec, before)) {
+            cached = previous
+            return ModelProvisionResult.Verified(VerifiedModel(file, spec, reused))
+        }
         val digest = MessageDigest.getInstance("SHA-256")
         FileInputStream(file).use { input ->
             val header = ByteArray(spec.format.signature.size)
@@ -168,10 +183,21 @@ class ModelArtifactStore internal constructor(
             if (total != spec.sizeBytes) return failure(ProvisionFailure.SIZE_MISMATCH)
         }
         if (digest.digest().hex() != spec.sha256) return failure(ProvisionFailure.HASH_MISMATCH)
+        val after = identity?.invoke(file)
+        if (before != after) return failure(ProvisionFailure.FILESYSTEM_ERROR)
+        if (after != null) cached = CachedVerification(spec, after)
         return ModelProvisionResult.Verified(VerifiedModel(file, spec, reused))
     }
 
-    private fun destination(spec: ModelArtifactSpec) = File(directory, spec.sha256 + spec.format.extension)
+    private fun remember(file: File, spec: ModelArtifactSpec) {
+        cached = identity?.invoke(file)?.let { CachedVerification(spec, it) }
+    }
+
+    private fun destination(spec: ModelArtifactSpec) = File(
+        directory, if (originalFilename) spec.filename else spec.sha256 + spec.format.extension,
+    )
+
+    private data class CachedVerification(val spec: ModelArtifactSpec, val identity: ModelFileIdentity)
 
     private fun safePath(file: File): Boolean =
         !Files.isSymbolicLink(file.toPath()) && file.canonicalFile.parentFile == directory.canonicalFile
