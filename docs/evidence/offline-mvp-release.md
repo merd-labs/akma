@@ -233,3 +233,47 @@ artifacts remain intact. Full combined gates, hosted CI and final team approval 
 until the actual results below are recorded.
 
 Focused reconciliation gate: `:app:testDebugUnitTest --tests ph.merd.akma.domain.NativeReplyOperationTest --tests ph.merd.akma.domain.LocalModelOutputTest` PASS, exit 0; 21 tests, zero failures/errors/skips. Staged redacted Gitleaks scan, whitespace, actionlint and PowerShell syntax PASS. JDK17 standalone artifact verifier fixtures PASS (13 cases), not inference proof.
+
+### Combined source checkpoint and observed gate
+
+Local combined source `47d9c07bf81830e5ac4618ded295ec87195be69b` contains PR29's selected
+changes through semantic merge `46082ea`, PR31 visual/runtime-compatible source
+`01c226a4bee49ee424d0ebef974a692581f580ab` through `47de7b1`, and PR32 test source
+`520762775d0f72ddca20928019bbbab2f307cd41` through `47d9c07`. PR31's later launcher-icon
+and draggable-bubble commits were not silently adopted during the gate. No component
+source was personally edited by Primary.
+
+```sh
+./gradlew --no-daemon --max-workers=2 \
+  -Pkotlin.compiler.execution.strategy=in-process -Pkotlin.incremental=false \
+  :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest \
+  :app:testReleaseUnitTest :app:lintDebug :app:lintRelease --console=plain
+```
+
+With JDK17 and Android SDK selected, observed exit 0, `BUILD SUCCESSFUL in 17m 47s`,
+107 tasks. Debug and release each ran 327 tests across 32 suites: zero failures, errors
+or skipped tests. Each lint report has zero errors and 16 warnings. Both actual merged
+manifest guards PASS. This gate included the real ignored model asset; hosted builds
+still contain no weights. It does not prove generation on Rhence's Infinix.
+
+Debug APK artifact verification PASS: exact model size/header/SHA and ARM64 ELF,
+1,679,726,759 bytes, whole-APK SHA-256
+`e7416d6958fe394fb954493e4d4cb7594bd4445828fd0dcb0e50c6f94b283399`.
+JDK17 apksigner verification PASS; development certificate SHA-256
+`a7cabcfe6ca089204bed0b79e2ac0be6e2d98e3eb337ea11f9c043342cd55cff`.
+This debug artifact is a checkpoint, not the non-debuggable final demo APK.
+Committed-range redacted Gitleaks PASS: 27 commits, no leaks. Approved contract,
+coordinator, wrapper and archived Elijah drafts match the previous PR27 head.
+
+The branch is published for owner coordination while explicitly BLOCKED on a real
+whitespace defect: `OnboardingScreens.kt:290`, extra EOF blank line. PR31 hosted run
+37992678139 logs show the check exiting 2. Danielle owns the component; Primary requested
+its correction and separately requested authority for only the prepared one-line cleanup.
+No failing check is bypassed, no main merge is performed, and this published checkpoint
+must not be called green or release-approved. The owner platform bridge and Activity
+Close/session wiring remain integration dependencies.
+
+PR33 `e934934` is excluded: its opening-brace extraction causes normal JSON to select an
+empty object, then reports fabricated default Other/summary as LOCAL_MODEL. Its analysis
+prompt keys also conflict with the retained protocol. The integrated parser fails visibly;
+model-purpose/category changes require coordination rather than another success fallback.
