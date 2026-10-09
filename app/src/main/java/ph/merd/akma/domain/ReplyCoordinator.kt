@@ -14,6 +14,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import ph.merd.akma.safety.ModelOutputSafety
+import ph.merd.akma.safety.SafetyResult
+import ph.merd.akma.safety.UnsafeModelOutputException
 
 enum class ReplyPhase {
     ModelUnavailable, ModelLoading, Ready, Analyzing, ChoosingAction, Drafting, Editing, Copied, Error,
@@ -117,7 +120,10 @@ class ReplyCoordinator(
         // Consume before scheduling. A duplicate confirmation cannot reuse this request.
         mutableState.value = state.value.copy(pendingConfirmation = null)
         process(ReplyPhase.Drafting) {
-            val draft = engine.draft(request).getOrThrow()
+            val draft = when (val safe = ModelOutputSafety.sanitizeDraft(engine.draft(request).getOrThrow(), ReplyValidation.MAX_TEXT_LENGTH)) {
+                is SafetyResult.Accepted -> safe.text
+                is SafetyResult.Rejected -> throw UnsafeModelOutputException(safe.reason)
+            }
             ReplyValidation.validateDraft(draft).getOrThrow()
             state.value.copy(phase = ReplyPhase.Editing, draft = draft, notice = null)
         }
@@ -201,14 +207,16 @@ class ReplyCoordinator(
                     mutableState.value = state.value.copy(phase = recoveryPhase, notice = "Cancelled.")
                 }
                 throw exception
-            } catch (exception: Exception) {
+            } catch (exception: Throwable) {
+                // Throwable, not Exception: native runtime bindings fail with Error subclasses (UnsatisfiedLinkError,
+                // NoClassDefFoundError, OutOfMemoryError) that would otherwise kill the process and leave the UI busy.
                 if (generation == currentGeneration) {
                     // Engine exception strings can contain private prompts. Never render or log them.
                     val unavailable = exception is ModelUnavailableException
                     if (unavailable) initialized = false
                     mutableState.value = state.value.copy(
                         phase = if (unavailable) ReplyPhase.ModelUnavailable else ReplyPhase.Error,
-                        notice = if (unavailable) "No local model is configured." else "Local processing failed. Check the model and retry.",
+                        notice = ModelOutputSafety.safeFailure(exception).userMessage,
                     )
                 }
             }

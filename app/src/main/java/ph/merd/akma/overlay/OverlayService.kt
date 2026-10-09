@@ -66,26 +66,16 @@ class OverlayService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (lifecycle.closed || !isOverlayShowRequest(intent != null, intent?.action)) {
+            // The Activity starts this service with startForegroundService(); Android requires startForeground()
+            // within seconds even when we are about to stop, otherwise ForegroundServiceDidNotStartInTimeException.
+            if (intent != null && intent.action == null) {
+                try { startAsForeground() } catch (_: RuntimeException) { /* stopping anyway */ }
+            }
             closeOverlay()
             return START_NOT_STICKY
         }
         try {
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(NotificationChannel(CHANNEL, "Akma overlay", NotificationManager.IMPORTANCE_LOW))
-            val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            val close = PendingIntent.getService(this, 1, Intent(this, OverlayService::class.java).setAction(ACTION_CLOSE), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            val notification = Notification.Builder(this, CHANNEL)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("Akma assistant is on")
-                .setContentText("Tap the bubble to paste. Close stops the assistant.")
-                .setContentIntent(open)
-                .setOngoing(true)
-                .addAction(Notification.Action.Builder(null, "Open Akma", open).build())
-                .addAction(Notification.Action.Builder(null, "Close", close).build())
-                .build()
-            if (Build.VERSION.SDK_INT >= 34) {
-                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-            } else startForeground(NOTIFICATION_ID, notification)
+            startAsForeground()
             if (!lifecycle.show(Settings.canDrawOverlays(this))) {
                 fail("Overlay permission required. Continue in the Activity.")
             }
@@ -93,6 +83,25 @@ class OverlayService : Service() {
             fail("Overlay unavailable. Continue in the Activity and retry.")
         }
         return START_NOT_STICKY
+    }
+
+    private fun startAsForeground() {
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(NotificationChannel(CHANNEL, "Akma overlay", NotificationManager.IMPORTANCE_LOW))
+        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val close = PendingIntent.getService(this, 1, Intent(this, OverlayService::class.java).setAction(ACTION_CLOSE), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val notification = Notification.Builder(this, CHANNEL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Akma assistant is on")
+            .setContentText("Tap the bubble to paste. Close stops the assistant.")
+            .setContentIntent(open)
+            .setOngoing(true)
+            .addAction(Notification.Action.Builder(null, "Open Akma", open).build())
+            .addAction(Notification.Action.Builder(null, "Close", close).build())
+            .build()
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else startForeground(NOTIFICATION_ID, notification)
     }
 
     private fun attachBubble() {

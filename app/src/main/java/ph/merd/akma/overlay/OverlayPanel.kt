@@ -68,6 +68,11 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
     private val copy = button("Copy draft") {
         if (copyDraft(context, replies.state.value)) replies.copied()
         else notice.text = "Copy failed. Select the draft and copy manually."
+    }.apply {
+        // Consequential control: ignore taps delivered while another app's window covers the tap point (tapjacking).
+        // Apply the same to the future Confirm button. Not applied panel-wide on purpose: full-screen dimmer/filter
+        // overlays would then block every control.
+        filterTouchesWhenObscured = true
     }
     private var rendering = false
     private var actionKey: Any? = null

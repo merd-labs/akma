@@ -34,3 +34,8 @@ jobs:
             exit 1
           fi
           ./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+      - name: Merged manifest security guard
+        shell: bash
+        run: |
+          java scripts/security/ManifestGuard.java --policy scripts/security/manifest-policy.txt \
+            app/build/intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml
