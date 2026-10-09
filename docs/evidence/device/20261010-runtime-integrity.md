@@ -142,9 +142,11 @@ Primary published source `3a3071139b6474c8ba393ccdf800e98be55c2d5a`, a non-debug
 - JDK17 apksigner: v3 verification PASS; signer SHA-256 `a7cabcfe6ca089204bed0b79e2ac0be6e2d98e3eb337ea11f9c043342cd55cff`, matching the installed candidate.
 - AAPT: Akma / `ph.merd.akma` / minSdk 30 / targetSdk 36 PASS. Other transitive ABI entries do not establish model JNI support for those ABIs.
 - Exact source inspection confirms separate initialization 900,000 ms and generation 240,000 ms deadlines; these are conservative limits, not measured performance.
-- Exact-head hosted Android/documentation CI: PASS. Primary reports combined 280 local tests, debug/release lint and release assembly PASS; those local results are owner-reported, not rerun by Quaternary.
+- Exact-head hosted Android/documentation CI: PASS. Quaternary independently reran combined tests, debug assembly and debug/release lint against this source: 280 tests passed, as recorded below. Release assembly remains owner-reported; Quaternary independently verified the resulting release artifact.
 
-Physical installation, startup, offline inference, lifecycle/cancellation/retry, and repeated generation for this new release SHA remain NOT TESTED. None of the earlier debug APK's results are substituted for the release gate. Its installation will wait until the current manual test has ended.
+Physical installation PASS: exit 0, 105,221 ms, completed 20:32:04 UTC. The installed APK was independently hashed and exactly matches the release SHA above. Native initialization PASS: 64,651 ms. Miguel confirms Akma reaches Ready without the earlier Retry step. The Activity launch observer timed out after 90 s; Activity TotalTime/WaitTime are NOT TESTED, rather than an inferred application failure.
+
+At 20:37:02 UTC, the running release process reported PSS 2,174,437 kB and RSS 2,269,032 kB; thermal status 0. At 20:40:19 UTC, PSS was 2,008,771 kB, RSS 2,112,900 kB and SWAP PSS 167 kB; thermal status 0. Airplane mode 1, Wi-Fi setting 0 / service disabled and default-subscription mobile data 0 were explicitly reverified before the release generation request. Release inference, lifecycle/cancellation/retry and repeated-generation results remain pending. Earlier debug APK results are not substituted for these gates.
 
 ## Second attempt — Filipino semantic failure
 
@@ -173,3 +175,46 @@ After the three user attempts ended, Akma alone was stopped. Its original model 
 Restarting removed the original orphan partial, but no verified model destination appeared during the bounded observation window. Recovery completion is FAIL for the initial APK. Its 60,000 ms initialization deadline is a suspected cause; no direct timeout/error banner was captured, so that cause is not reported as observed fact. The test collector stopped Akma and the original model was restored by rename: 1,597,931,520 bytes, no backup remaining. No app-data clear or unrelated process termination occurred.
 
 Quaternary created a separate read-only validation worktree at exact `3a30711` to build a debug diagnostic variant under the new initialization budget. No tracked engine/UI/coordinator/Gradle/manifest changes are made there. Initial model staging failed because another owner's temporary artifact path had disappeared; the first build is therefore source validation, not a model-enabled artifact claim. The surviving integration asset independently passed exact size/header/SHA checks and is retained by an owned hard link for the subsequent diagnostic build. The frozen release APK's already verified identity is unaffected.
+
+## Independent latest-source validation and diagnostic APK
+
+Quaternary's detached, unmodified-source worktree at `3a3071139b6474c8ba393ccdf800e98be55c2d5a` ran JDK17 Gradle Wrapper with `--no-daemon --max-workers=2 -Pkotlin.compiler.execution.strategy=in-process :app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:lintRelease`: PASS in 4m9s. Actual JUnit XML: 280 tests, zero failures/errors/skips. Each lint variant: zero errors, 12 warnings. This initial compile/test gate was model-free because the first artifact-staging attempt failed.
+
+After staging the independently verified ignored model by hard link, `:app:assembleDebug` passed in 55s. Quaternary's diagnostic APK is distinct from both the initial debug and frozen release artifacts:
+
+- Source `3a30711`; APK bytes 1,676,716,358; SHA-256 `70939d41efbb159e133395a81dff7440b435aa235a25081788e670340714bb24`.
+- Independent embedded model size/header/SHA/uncompressed storage and ARM64 JNI ELF: PASS.
+- JDK17 signature validation PASS; signer matches the frozen release and installed app. AAPT: Akma / ph.merd.akma / min30 / target36 / debuggable.
+- Actual merged debug manifest guard PASS, with expected debug-only debuggable warning. This debug variant is for app-private diagnostic access, not submission.
+- Replacement installation PASS: exit0, 101,870ms; completed 20:16:20 UTC. Installed APK SHA independently read back and matches `70939d41...`. Only the one identified 1,553,141,640-byte generated native cache was removed after stopping Akma; model and user data were preserved.
+
+On this latest-source diagnostic APK, interruption safety again PASS: 46,989,312-byte partial observed; no installed destination after process stop; original model preserved. Restart recovery PASS: the original orphan was removed; a complete verified model was atomically published in an observed 27,678 ms; its SHA matches the trusted owner pin; zero partials remained. This wall time measures the collector's launch-to-publication observation, not native model initialization.
+
+Same-size corruption recovery PASS: after stopping Akma, one byte at offset 4,096 was altered in the newly imported diagnostic copy, preserving its 1,597,931,520-byte length and LITERTLM header. The original backup was a separate inode and remained unchanged. Restart rejected and replaced the corrupt copy in an observed 83,501 ms; the repaired SHA exactly matches the trusted pin. Akma was stopped again and the original model restored; no backup or deliberately corrupt installed model remains. These tests ran on diagnostic APK `70939d41...`, not the non-debuggable release. Full native initialization of the newly imported read-only diagnostic copy was NOT TESTED because testing stopped after integrity publication. The release subsequently initialized the original verified app-private artifact.
+
+Physical insufficient-storage model import is NOT TESTED; the device was not deliberately filled. Meaningful unit tests cover storage refusal, missing files, cancellation and failed replacement. No second user-facing import flow, broad storage permission or network download was introduced.
+
+Evidence head `47f8333` hosted Android/documentation checks PASS: [push](https://github.com/merd-labs/akma/actions/runs/37984771004), [PR](https://github.com/merd-labs/akma/actions/runs/37984775572).
+
+## Current release gate summary
+
+These gates refer only to frozen release SHA `3e9fe18697409195323af83c05286109b68d0bbc13622643c23321b3889672d0` on Pova 2 LE7 / Android 11 / API30 / ARM64, unless another artifact is explicitly named.
+
+| Gate | Result | Evidence or measurement gap |
+| --- | --- | --- |
+| Release whole-APK and embedded-model integrity | PASS | Independent host verification and installed whole-APK SHA agree |
+| Install | PASS | Exit 0; host wall time 105,221 ms |
+| Genuine CPU native initialization / Ready | PASS | Native 64,651 ms; Miguel confirms Ready without Retry |
+| Activity launch latency | NOT TESTED | Observer timeout at 90 s; no valid Activity timing returned |
+| Explicit offline radio state | PASS | Airplane 1; Wi-Fi setting 0 and service disabled; selected mobile-data setting 0 |
+| Native English analysis completion | PASS | 47,791 ms; 204 raw characters logged; contents remain private |
+| English draft completion and fidelity | NOT TESTED | User attempt in progress at this evidence checkpoint |
+| Three consecutive release generations / Filipino / Taglish | NOT TESTED | Initial debug sequence is historical evidence only |
+| Ready after a second release process restart | NOT TESTED | Separate full restart pending |
+| Release native cancellation and retry | NOT TESTED | Domain regression tests are not physical cancellation evidence |
+| Release memory and thermal observations | PASS | Sampled post-init PSS 2,174,437 kB, RSS 2,269,032 kB; thermal 0; no peak-memory claim |
+| Interrupted import / restart recovery / same-size corruption | PASS on diagnostic APK only | Exact same source; APK `70939d41...`; publication 27,678 ms, corruption replacement 83,501 ms |
+| Physical model-import storage refusal | NOT TESTED | Phone not deliberately filled; meaningful unit cases pass |
+| Camon 30 or Infinix exact-release compatibility | NOT TESTED | Requires separate exclusive device gate |
+| Native Windows tooling | NOT TESTED | PowerShell on Ubuntu passed; Windows host execution absent |
+| First-token latency / measured tokens per second / GPU / 4 GB compatibility | NOT TESTED | No supporting measurements |
