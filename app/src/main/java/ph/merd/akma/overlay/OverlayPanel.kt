@@ -19,8 +19,16 @@ import ph.merd.akma.domain.ReplyCoordinator
 import ph.merd.akma.domain.ReplyPhase
 import ph.merd.akma.domain.ReplyState
 import ph.merd.akma.domain.ReplyTone
+import ph.merd.akma.domain.ActionCatalog
 import ph.merd.akma.ui.copyDraft
 import ph.merd.akma.ui.statusText
+import ph.merd.akma.ui.canStartProcessing
+import ph.merd.akma.ui.canChooseDraft
+import ph.merd.akma.ui.displayedConfirmation
+import ph.merd.akma.ui.selectDraft
+import ph.merd.akma.ui.confirmDisplayedDraft
+import ph.merd.akma.ui.cancelDisplayedDraft
+import ph.merd.akma.ui.confirmationButton
 
 /** Views keep overlay lifecycle independent from Compose. Input is never saved or autofilled. */
 class OverlayPanel(context: Context, private val replies: ReplyCoordinator, close: () -> Unit) : LinearLayout(context) {
@@ -32,8 +40,8 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
     private val status = label("")
     private val notice = label("")
     private val progress = ProgressBar(context)
-    private val cancel = button("Cancel", replies::cancel)
-    private val check = button("Check local model", replies::initialize)
+    private val cancel = button("Cancel") { if (replies.state.value.busy) replies.cancel() }
+    private val check = button("Check local model") { if (replies.state.value.canStartProcessing) replies.initialize() }
     private val recover = button("Dismiss error and retry", replies::recover)
     private val message = input("Message — tap Paste message", replies::setMessage)
     private val paste = button("Paste message") {
@@ -59,12 +67,14 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
             }
         }
     }
-    private val analyze = button("Analyze locally", replies::analyze)
+    private val analyze = button("Analyze locally") { if (replies.state.value.canStartProcessing) replies.analyze() }
     private val actions = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    private val confirmationArea = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     private val tone = Spinner(context).apply {
         adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item, ReplyTone.entries.map { it.name })
     }
     private val draft = input("Editable draft", replies::editDraft)
+    private val review = label("Review before copying. Paste and send manually.")
     private val copy = button("Copy draft") {
         if (copyDraft(context, replies.state.value)) replies.copied()
         else notice.text = "Copy failed. Select the draft and copy manually."
@@ -80,7 +90,7 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
         addView(label("Akma").apply { textSize = 20f; setTypeface(null, Typeface.BOLD) })
         addView(button("Close panel", close))
         addView(ScrollView(context).apply { addView(content) }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, 1f))
-        listOf(status, notice, progress, cancel, check, recover, message, paste, analyze, tone, actions, draft, copy).forEach(content::addView)
+        listOf(status, notice, progress, cancel, check, recover, message, paste, analyze, tone, actions, confirmationArea, review, draft, copy).forEach(content::addView)
         // Limit panel height so Close remains accessible above the keyboard on small screens.
         layoutParams = android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
     }
@@ -98,26 +108,62 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
             notice.text = state.notice.orEmpty()
             progress.visibility = if (state.busy) VISIBLE else GONE
             cancel.visibility = if (state.busy) VISIBLE else GONE
-            check.isEnabled = !state.busy
+            check.isEnabled = state.canStartProcessing
             recover.visibility = if (state.phase == ReplyPhase.Error) VISIBLE else GONE
             message.isEnabled = !state.busy
             paste.isEnabled = !state.busy
             syncText(message, state.message)
-            analyze.isEnabled = !state.busy && state.phase != ReplyPhase.ModelUnavailable
+            analyze.isEnabled = state.canStartProcessing && state.phase != ReplyPhase.ModelUnavailable
             tone.visibility = if (state.analysis == null) GONE else VISIBLE
-            tone.isEnabled = !state.busy
+            tone.isEnabled = state.canChooseDraft
+            state.pendingConfirmation?.request?.tone?.let { selected ->
+                if (tone.selectedItemPosition != selected.ordinal) tone.setSelection(selected.ordinal)
+            }
             if (actionKey != state.analysis) {
                 actionKey = state.analysis
                 actions.removeAllViews()
                 state.analysis?.let { analysis ->
                     actions.addView(label(analysis.summary))
                     analysis.actions.forEach { action ->
-                        actions.addView(button(action.label) { replies.draft(action.id, ReplyTone.entries[tone.selectedItemPosition]) })
+                        actions.addView(button(ActionCatalog.action(action.id)?.label ?: "Unavailable action") {
+                            replies.selectDraft(action.id, ReplyTone.entries[tone.selectedItemPosition])
+                        })
                     }
                 }
             }
-            for (index in 0 until actions.childCount) actions.getChildAt(index).isEnabled = !state.busy
+            for (index in 0 until actions.childCount) actions.getChildAt(index).isEnabled = state.canChooseDraft
+            confirmationArea.removeAllViews()
+            confirmationArea.visibility = if (state.pendingConfirmation != null) VISIBLE else GONE
+            state.pendingConfirmation?.let { displayed ->
+                val confirmation = state.displayedConfirmation()
+                if (confirmation != null) {
+                    confirmationArea.addView(label("Review before generating"))
+                    confirmationArea.addView(label("Action: ${confirmation.action.label}"))
+                    confirmationArea.addView(label("Tone: ${confirmation.request.tone.name}"))
+                    confirmationArea.addView(label("Message context (untrusted copied text):"))
+                    confirmationArea.addView(label(confirmation.request.original.message))
+                    if (confirmation.request.original.history.isNotBlank()) {
+                        confirmationArea.addView(label("History (untrusted text):"))
+                        confirmationArea.addView(label(confirmation.request.original.history))
+                    }
+                    confirmation.request.original.relationship?.takeIf { it.isNotBlank() }?.let {
+                        confirmationArea.addView(label("Relationship (untrusted text):"))
+                        confirmationArea.addView(label(it))
+                    }
+                    if (confirmation.request.userInstruction.isNotBlank()) {
+                        confirmationArea.addView(label("Instruction (untrusted text):"))
+                        confirmationArea.addView(label(confirmation.request.userInstruction))
+                    }
+                } else confirmationArea.addView(label("Selection no longer valid. Cancel and choose again."))
+                confirmationArea.addView(label("Generating a draft does not send or accept anything. Cancel to change action or tone."))
+                confirmationArea.addView(confirmationButton(context).apply {
+                    isEnabled = confirmation != null
+                    setOnClickListener { replies.confirmDisplayedDraft(displayed.id) }
+                })
+                confirmationArea.addView(button("Cancel selection") { replies.cancelDisplayedDraft(displayed.id) })
+            }
             val editing = state.phase in setOf(ReplyPhase.Editing, ReplyPhase.Copied)
+            review.visibility = if (editing) VISIBLE else GONE
             draft.visibility = if (editing) VISIBLE else GONE
             copy.visibility = if (editing) VISIBLE else GONE
             copy.isEnabled = state.canCopy

@@ -25,19 +25,29 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ph.merd.akma.domain.ReplyPhase
 import ph.merd.akma.domain.ReplyTone
+import ph.merd.akma.domain.ActionCatalog
 import ph.merd.akma.overlay.OverlayService
 import ph.merd.akma.ui.copyDraft
 import ph.merd.akma.ui.statusText
+import ph.merd.akma.ui.canStartProcessing
+import ph.merd.akma.ui.canChooseDraft
+import ph.merd.akma.ui.displayedConfirmation
+import ph.merd.akma.ui.selectDraft
+import ph.merd.akma.ui.confirmDisplayedDraft
+import ph.merd.akma.ui.cancelDisplayedDraft
+import ph.merd.akma.ui.confirmationButton
 
 class MainActivity : ComponentActivity() {
     private val session get() = application as AkmaApplication
@@ -83,9 +93,11 @@ class MainActivity : ComponentActivity() {
                         state.notice?.let { Text(it) }
                         if (state.busy) {
                             LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Button(onClick = session.replies::cancel) { Text("Cancel") }
+                            Button(onClick = { if (session.replies.state.value.busy) session.replies.cancel() }) { Text("Cancel") }
                         }
-                        Button(onClick = session.replies::initialize, enabled = !state.busy) { Text("Check local model") }
+                        Button(onClick = {
+                            if (session.replies.state.value.canStartProcessing) session.replies.initialize()
+                        }, enabled = state.canStartProcessing) { Text("Check local model") }
                         if (state.phase == ReplyPhase.Error) {
                             Button(onClick = session.replies::recover) { Text("Dismiss error and retry") }
                         }
@@ -99,21 +111,64 @@ class MainActivity : ComponentActivity() {
                             minLines = 3,
                         )
                         Button(
-                            onClick = session.replies::analyze,
-                            enabled = !state.busy && state.phase != ReplyPhase.ModelUnavailable,
+                            onClick = { if (session.replies.state.value.canStartProcessing) session.replies.analyze() },
+                            enabled = state.canStartProcessing && state.phase != ReplyPhase.ModelUnavailable,
                         ) { Text("Analyze locally") }
                         state.analysis?.let { analysis ->
                             Text(analysis.summary)
+                            val displayedTone = state.pendingConfirmation?.request?.tone ?: tone
                             ReplyTone.entries.forEach { choice ->
-                                Button(onClick = { tone = choice }, enabled = !state.busy) {
-                                    Text(if (tone == choice) "Selected: ${choice.name}" else choice.name)
+                                Button(onClick = {
+                                    if (session.replies.state.value.canChooseDraft) tone = choice
+                                }, enabled = state.canChooseDraft) {
+                                    Text(if (displayedTone == choice) "Selected: ${choice.name}" else choice.name)
                                 }
                             }
                             analysis.actions.forEach { action ->
-                                Button(onClick = { session.replies.draft(action.id, tone) }, enabled = !state.busy) { Text(action.label) }
+                                val canonical = ActionCatalog.action(action.id)
+                                Button(onClick = { session.replies.selectDraft(action.id, tone) },
+                                    enabled = state.canChooseDraft && canonical == action) {
+                                    Text(canonical?.label ?: "Unavailable action")
+                                }
+                            }
+                        }
+                        state.pendingConfirmation?.let { displayed ->
+                            // Replacing a token replaces its controls, cancelling any in-flight tap.
+                            key(displayed.id) {
+                                val confirmation = state.displayedConfirmation()
+                                if (confirmation != null) {
+                                    Text("Review before generating", style = MaterialTheme.typography.titleMedium)
+                                    Text("Action: ${confirmation.action.label}")
+                                    Text("Tone: ${confirmation.request.tone.name}")
+                                    Text("Message context (untrusted copied text):")
+                                    Text(confirmation.request.original.message)
+                                    if (confirmation.request.original.history.isNotBlank()) {
+                                        Text("History (untrusted text):")
+                                        Text(confirmation.request.original.history)
+                                    }
+                                    confirmation.request.original.relationship?.takeIf { it.isNotBlank() }?.let {
+                                        Text("Relationship (untrusted text):")
+                                        Text(it)
+                                    }
+                                    if (confirmation.request.userInstruction.isNotBlank()) {
+                                        Text("Instruction (untrusted text):")
+                                        Text(confirmation.request.userInstruction)
+                                    }
+                                } else Text("Selection no longer valid. Cancel and choose again.")
+                                Text("Generating a draft does not send or accept anything. Cancel to change action or tone.")
+                                AndroidView(
+                                    factory = { context -> confirmationButton(context) },
+                                    update = { button ->
+                                        button.isEnabled = confirmation != null
+                                        button.setOnClickListener { session.replies.confirmDisplayedDraft(displayed.id) }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Button(onClick = { session.replies.cancelDisplayedDraft(displayed.id) }) { Text("Cancel selection") }
                             }
                         }
                         if (state.phase in setOf(ReplyPhase.Editing, ReplyPhase.Copied)) {
+                            Text("Review before copying. Paste and send manually.")
                             OutlinedTextField(
                                 value = state.draft,
                                 onValueChange = { copyError = false; session.replies.editDraft(it) },
@@ -122,7 +177,7 @@ class MainActivity : ComponentActivity() {
                                 minLines = 3,
                             )
                             Button(onClick = {
-                                copyError = !copyDraft(this@MainActivity, state)
+                                copyError = !copyDraft(this@MainActivity, session.replies.state.value)
                                 if (!copyError) session.replies.copied()
                             }, enabled = state.canCopy) { Text("Copy draft") }
                             if (copyError) Text("Copy failed. Select the draft and copy manually.")
