@@ -16,22 +16,30 @@ internal class BubbleBounds(
     private val margin: Int,
     private val topInset: Int = 0,
     private val bottomInset: Int = 0,
+    private val leftInset: Int = 0,
+    private val rightInset: Int = 0,
 ) {
-    private val minY get() = topInset
-    private val maxY get() = (screenH - bottomInset - size).coerceAtLeast(minY)
-    private val leftX get() = margin
-    private val rightX get() = (screenW - size - margin).coerceAtLeast(leftX)
+    private val horizontalTravel = (screenW - size).coerceAtLeast(0)
+    private val verticalTravel = (screenH - size).coerceAtLeast(0)
+    private val minX = leftInset.coerceIn(0, horizontalTravel)
+    private val maxX = (screenW - rightInset - size).coerceIn(minX, horizontalTravel)
+    private val minY = topInset.coerceIn(0, verticalTravel)
+    private val maxY = (screenH - bottomInset - size).coerceIn(minY, verticalTravel)
+    private val edgeMargin = margin.coerceIn(0, (maxX - minX) / 2)
+    private val leftX = minX + edgeMargin
+    private val rightX = maxX - edgeMargin
 
     /** Keeps the whole bubble on screen while it is dragged. */
     fun clamp(point: BubblePoint) = BubblePoint(
-        point.x.coerceIn(0, (screenW - size).coerceAtLeast(0)),
+        point.x.coerceIn(minX, maxX),
         point.y.coerceIn(minY, maxY),
     )
 
     /** Where the bubble rests after a drag: the nearer side edge, at the dropped height. */
     fun snap(point: BubblePoint): BubblePoint {
-        val centre = point.x + size / 2
-        return BubblePoint(if (centre < screenW / 2) leftX else rightX, point.y.coerceIn(minY, maxY))
+        val safe = clamp(point)
+        val midpoint = minX + (maxX - minX) / 2
+        return BubblePoint(if (safe.x < midpoint) leftX else rightX, safe.y)
     }
 
     /** First position: right edge, a little below centre (Figma y 520 of 800). */
