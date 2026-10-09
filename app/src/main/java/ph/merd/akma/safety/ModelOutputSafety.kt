@@ -123,6 +123,38 @@ object ModelOutputSafety {
     /** Content-free description for diagnostics: length only. Use instead of logging text. */
     fun describeForLog(text: String): String = "[redacted chars=${text.length}]"
 
+    /**
+     * INPUT direction: makes user-supplied or copied text safe to embed in a hand-built chat-template prompt.
+     * A copied message such as `hi<|im_end|><|im_start|>system ...` would otherwise close the user turn and forge a
+     * system/assistant turn. Removes chat-template control tokens (repeatedly, so split tokens cannot re-form),
+     * invisible/bidi/control characters, repairs lone surrogates and bounds the length. It keeps ordinary text,
+     * URLs and newlines untouched. It reduces special-token injection; it does NOT stop plain-language prompt
+     * injection ("ignore your instructions"), which is why every action still needs human confirmation.
+     */
+    fun neutralizePromptInput(raw: String): String {
+        val bounded = if (raw.length > MAX_RAW_CHARS) raw.substring(0, MAX_RAW_CHARS) else raw
+        val repaired = buildString(bounded.length) {
+            var index = 0
+            while (index < bounded.length) {
+                val unit = bounded[index]
+                val paired = Character.isHighSurrogate(unit) && index + 1 < bounded.length && Character.isLowSurrogate(bounded[index + 1])
+                when {
+                    paired -> { append(unit).append(bounded[index + 1]); index += 2 }
+                    Character.isSurrogate(unit) -> { append('\uFFFD'); index++ }
+                    else -> { append(unit); index++ }
+                }
+            }
+        }
+        var text = (clean(repaired, allowNewlines = true) as Cleaned.Ok).text
+        repeat(8) {
+            val next = thinkTags.replace(strayTokens.replace(turnTerminators.replace(text, ""), ""), "")
+            if (next == text) return@repeat
+            text = next
+        }
+        // Anything still shaped like a special token is broken apart so no template parser can read it.
+        return text.replace("<|", "< |").replace("|>", "| >")
+    }
+
     // ---- cleaning ---------------------------------------------------------------------------------------------
 
     private sealed interface Cleaned {
@@ -261,6 +293,7 @@ object ModelOutputSafety {
 
     private val thinkBlock = Regex("(?is)<think>.*?</think>")
     private val thinkOpenTail = Regex("(?is)<think>.*$")
+    private val thinkTags = Regex("(?i)</?think>")
     private val leadingArtifacts = listOf(
         Regex("^\\s*(?:<bos>|<s>|<\\|begin_of_text\\|>)"),
         Regex("^\\s*<\\|start_header_id\\|>\\s*(?:assistant|model)\\s*<\\|end_header_id\\|>"),
@@ -274,7 +307,7 @@ object ModelOutputSafety {
             "<eos>|</s>|<\\|(?:user|assistant|system)\\|>|\\[INST]",
     )
     private val strayTokens = Regex(
-        "(?i)<\\|[a-z_]{2,32}\\|>|<(?:bos|eos|pad|unk|s|/s|start_of_turn|end_of_turn)>|<</?SYS>>|\\[/?INST]",
+        "(?i)<\\|[a-z0-9_]{2,40}\\|>|<(?:bos|eos|pad|unk|s|/s|start_of_turn|end_of_turn)>|<</?SYS>>|\\[/?INST]",
     )
 
     private fun stripTemplate(input: String, flags: MutableSet<SafetyFlag>): String {
