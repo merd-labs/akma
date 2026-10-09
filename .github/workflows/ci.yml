@@ -12,7 +12,7 @@ jobs:
         with:
           fetch-depth: 2
       - name: Whitespace check
-        run: git show --format= --check HEAD
+        run: git diff --check HEAD^1 HEAD
   android:
     runs-on: ubuntu-24.04
     steps:
