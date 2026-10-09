@@ -6,6 +6,7 @@ import android.graphics.Typeface
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -22,7 +23,7 @@ import ph.merd.akma.ui.copyDraft
 import ph.merd.akma.ui.statusText
 
 /** Views keep overlay lifecycle independent from Compose. Input is never saved or autofilled. */
-class OverlayPanel(context: Context, private val replies: ReplyCoordinator, close: () -> Unit) : ScrollView(context) {
+class OverlayPanel(context: Context, private val replies: ReplyCoordinator, close: () -> Unit) : LinearLayout(context) {
     private val content = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(20, 16, 20, 16)
@@ -32,9 +33,32 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
     private val notice = label("")
     private val progress = ProgressBar(context)
     private val cancel = button("Cancel", replies::cancel)
-    private val check = button("Check local model", replies::initialize)
+    private val check = button("Retry local model", replies::initialize)
     private val recover = button("Dismiss error and retry", replies::recover)
-    private val message = input("Message — long-press to Paste", replies::setMessage)
+    private val message = input("Message — tap Paste message", replies::setMessage)
+    private val paste = button("Paste message") {
+        // Service-hosted Views may have no floating selection toolbar. Use Android's native
+        // paste action, only after this user click and while our input window has focus.
+        if (!message.requestFocus() || !message.hasWindowFocus()) {
+            notice.text = "Tap the message field, then Paste message."
+        } else {
+            try {
+                // Focus alone does not display the IME when a button initiated Paste.
+                // This explicit user action requests normal IME display, never forced display.
+                message.post {
+                    if (message.isAttachedToWindow && message.hasWindowFocus()) {
+                        context.getSystemService(InputMethodManager::class.java)
+                            .showSoftInput(message, InputMethodManager.SHOW_IMPLICIT)
+                    }
+                }
+                if (!message.onTextContextMenuItem(android.R.id.paste)) {
+                    notice.text = "Paste unavailable. Copy text and retry, or use the Activity."
+                }
+            } catch (_: RuntimeException) {
+                notice.text = "Paste unavailable. Copy text and retry, or use the Activity."
+            }
+        }
+    }
     private val analyze = button("Analyze locally", replies::analyze)
     private val actions = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     private val tone = Spinner(context).apply {
@@ -51,10 +75,12 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
     init {
         isSaveEnabled = false
         importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
-        addView(content)
-        content.addView(label("Akma").apply { textSize = 20f; setTypeface(null, Typeface.BOLD) })
-        content.addView(button("Close overlay", close))
-        listOf(status, notice, progress, cancel, check, recover, message, analyze, tone, actions, draft, copy).forEach(content::addView)
+        orientation = VERTICAL
+        setBackgroundColor(Color.WHITE)
+        addView(label("Akma").apply { textSize = 20f; setTypeface(null, Typeface.BOLD) })
+        addView(button("Close panel", close))
+        addView(ScrollView(context).apply { addView(content) }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, 1f))
+        listOf(status, notice, progress, cancel, check, recover, message, paste, analyze, tone, actions, draft, copy).forEach(content::addView)
         // Limit panel height so Close remains accessible above the keyboard on small screens.
         layoutParams = android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
     }
@@ -73,8 +99,10 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
             progress.visibility = if (state.busy) VISIBLE else GONE
             cancel.visibility = if (state.busy) VISIBLE else GONE
             check.isEnabled = !state.busy
+            check.visibility = if (state.phase in setOf(ReplyPhase.ModelUnavailable, ReplyPhase.Error)) VISIBLE else GONE
             recover.visibility = if (state.phase == ReplyPhase.Error) VISIBLE else GONE
             message.isEnabled = !state.busy
+            paste.isEnabled = !state.busy
             syncText(message, state.message)
             analyze.isEnabled = !state.busy && state.phase != ReplyPhase.ModelUnavailable
             tone.visibility = if (state.analysis == null) GONE else VISIBLE
@@ -85,7 +113,7 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
                 state.analysis?.let { analysis ->
                     actions.addView(label(analysis.summary))
                     analysis.actions.forEach { action ->
-                        actions.addView(button(action.label) { replies.draft(action.id, ReplyTone.entries[tone.selectedItemPosition]) })
+                        actions.addView(button(action.label) { replies.selectAction(action.id, ReplyTone.entries[tone.selectedItemPosition]) })
                     }
                 }
             }
@@ -117,17 +145,19 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
         isSaveEnabled = false
         addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
                 if (!rendering) { change(s.toString()); render(replies.state.value) }
             }
-            override fun afterTextChanged(s: Editable?) = Unit
         })
     }
 
     private fun syncText(field: EditText, value: String) {
         if (field.text.toString() != value) {
+            val start = field.selectionStart.coerceIn(0, value.length)
+            val end = field.selectionEnd.coerceIn(0, value.length)
             field.setText(value)
-            field.setSelection(value.length)
+            field.setSelection(start, end)
         }
     }
 }

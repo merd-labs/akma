@@ -85,7 +85,11 @@ class MainActivity : ComponentActivity() {
                             LinearProgressIndicator(Modifier.fillMaxWidth())
                             Button(onClick = session.replies::cancel) { Text("Cancel") }
                         }
-                        Button(onClick = session.replies::initialize, enabled = !state.busy) { Text("Check local model") }
+                        if (state.phase in setOf(ReplyPhase.ModelUnavailable, ReplyPhase.Error)) {
+                        if (state.phase in setOf(ReplyPhase.ModelUnavailable, ReplyPhase.Error)) {
+                            Button(onClick = session.replies::initialize, enabled = !state.busy) { Text("Retry local model") }
+                        }
+                        }
                         if (state.phase == ReplyPhase.Error) {
                             Button(onClick = session.replies::recover) { Text("Dismiss error and retry") }
                         }
@@ -110,7 +114,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                             analysis.actions.forEach { action ->
-                                Button(onClick = { session.replies.draft(action.id, tone) }, enabled = !state.busy) { Text(action.label) }
+                                Button(onClick = { session.replies.selectAction(action.id, tone) }, enabled = !state.busy) { Text(action.label) }
                             }
                         }
                         if (state.phase in setOf(ReplyPhase.Editing, ReplyPhase.Copied)) {
