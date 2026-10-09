@@ -14,6 +14,7 @@ Host: Linux x86_64, Bash 5.2.21, PowerShell 7.6.6, Python 3.14.8. Commands run f
 | `pwsh -NoProfile -File scripts/bench/collect.ps1 -Help` | Exit 0; usage printed |
 | `python3 scripts/bench/test_collectors.py` | Final run: exit 0, 8 test methods, 112.196 seconds, `OK` |
 | `git diff --check` | Exit 0 |
+| `git show --format= --check HEAD` on the tooling commit | Exit 0 |
 
 Exact PowerShell parser command:
 
@@ -24,6 +25,12 @@ pwsh -NoProfile -Command '$tokens = $null; $errors = $null; [void][System.Manage
 The final suite exercises both collectors. It checks serial selection on every transport call, malformed arguments, emulator serials and QEMU properties, unauthorized/offline states, permission failures, serial and private-sentinel filtering, modern/legacy PSS parsing, model-name parity, missing metrics, package overrides, no overwrite, and bounded timeout reporting. Fixture numbers are synthetic and are not copied into handset evidence.
 
 An expanded model-name assertion exposed a Bash filter failure during development. The filter was corrected; the final full suite above passes. No physical device or model was exercised by the suite.
+
+## Hosted CI blocker
+
+The initial [PR documentation job](https://github.com/merd-labs/akma/actions/runs/37926393816/job/113806253661) fails with exit 2. Its shallow checkout runs `git show --format= --check HEAD` and flags trailing whitespace in the preserved `docs/reference/elijah/01_PRODUCT_REQUIREMENTS.md`, `02_TECHNICAL_REQUIREMENTS.md`, and `03_24_HOUR_EXECUTION_PLAN.md`. Those paths have no changes in this branch relative to bootstrap. The local tooling commit check passes. The corresponding push documentation job also fails. This is not a passing hosted gate.
+
+Miguel owns the shared CI correction. This task cannot change the workflow or preserved source drafts. Android hosted jobs were still running when the initial failure was inspected; no hosted Android success is claimed here. Current PR checks must be inspected before review or merge.
 
 ## Measurement gaps
 
