@@ -10,7 +10,13 @@ import ph.merd.akma.domain.*
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class OverlayDismissalTest {
-    private val analysis = AnalysisResult("Other", "Synthetic summary", false, listOf(SuggestedAction("clarify", "Clarify")))
+    private val analysis = AnalysisResult(
+        category = "other",
+        summary = "Synthetic summary",
+        requiresUserDecision = true,
+        actions = listOf(SuggestedAction("ask_to_clarify", "Ask to clarify")),
+        source = AnalysisSource.DETERMINISTIC,
+    )
     private inner class Engine(val pending: CompletableDeferred<AnalysisResult>? = null) : LocalReplyEngine {
         var initializations = 0
         override suspend fun initialize(): Result<Unit> { initializations++; return Result.success(Unit) }
@@ -25,7 +31,9 @@ class OverlayDismissalTest {
         replies.initialize(); runCurrent()
         replies.setMessage("Synthetic message")
         replies.analyze(); runCurrent()
-        replies.draft("clarify", ReplyTone.CONCISE); runCurrent()
+        replies.draft("ask_to_clarify", ReplyTone.CONCISE); runCurrent()
+        val confirmation = requireNotNull(replies.state.value.pendingConfirmation)
+        replies.confirmDraft(confirmation.id); runCurrent()
         replies.editDraft("Synthetic edited draft"); replies.copied()
         assertTrue(replies.state.value.canCopy)
         clearOverlayReplySession(replies)
