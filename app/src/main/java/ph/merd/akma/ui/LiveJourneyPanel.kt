@@ -4,6 +4,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -53,8 +54,13 @@ fun LiveJourneyPanel(
     var copyError by remember { mutableStateOf(false) }
     // Guards compare against the state this composition displayed, not a later one.
     val displayed = state
+    LaunchedEffect(displayed.phase) {
+        localNotice = null
+        copyError = false
+    }
     val language = displayed.analysis?.let { languageLabel(displayed.message) }
-    val ui = displayed.toPanelUi(tone, lastActionId, language, demo).let { it.copy(notice = localNotice ?: it.notice) }
+    // Runtime/provisioning/safety notices must never be hidden behind an earlier local tap failure.
+    val ui = displayed.toPanelUi(tone, lastActionId, language, demo).let { it.copy(notice = it.notice ?: localNotice) }
     val pasteNotices = PasteNotices(
         empty = stringResource(R.string.akma_paste_empty),
         tooLong = stringResource(R.string.akma_paste_too_long),
