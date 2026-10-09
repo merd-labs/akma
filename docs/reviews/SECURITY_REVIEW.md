@@ -317,3 +317,23 @@ One named owner per file set to avoid collisions: domain (`ReplyCoordinator.kt`,
 ### 11.1 Not tested in round 3
 
 Physical Pova 2 / Infinix Zero 5G / Camon 30 (author-reported only); obscured-touch attack; foreground-service start race; Confirm UI on device (does not exist); any real model behaviour or injection resistance; hosted CI behaviour of a corrected whitespace gate; #16 scripts (not executed); #11 `collect.ps1` and `test_collectors.py`; Android 14 foreground-service behaviour.
+
+## 12. Status update 2026-10-10 ~01:45 PHT (supersedes earlier statuses where stated)
+
+Heads: `main` `3edd10f` now contains #4, #13 (`f9058d9`), #14, #17 and #12. Hardening branch: PR #23 (`fix/security-hardening`).
+
+| Earlier item | Current status | Evidence |
+|---|---|---|
+| F1 / R3-7 label binding, untrusted summary, confirmation gate | **Merged to `main` (#14 + #17)** | main CI success (`gh run list --branch main`); round-3 probes |
+| F3 / R3-12 clear on Close | **Merged to `main` (#12)** | round-3 emulator retest on the pre-merge composite |
+| R3-3 #14+#12 test break | **Resolved on `main`** (fixtures reconciled; main CI success) | main push run `3edd10f` success |
+| R3-4 CI whitespace gate | **Fixed by `f9058d9` (`git diff --check HEAD^1 HEAD`)**: a PR merge commit with a trailing-space file now exits 2 (temp-repo reproduction); the earlier `git show` form exited 0. Residual (REASONED): a multi-commit push is checked only against its last parent | local reproduction |
+| R3-5 draft sanitisation | **Open — component + patch in PR #23** (`ModelOutputSafety`, `domain-output-safety.patch`) | 46 sanitiser tests |
+| R3-14 INTERNET guard | **Implemented in PR #23** (`ManifestGuard` + `ManifestGuardTest`); CI step optional via `ci-manifest-guard.patch` | tests pass |
+| R3-9 obscured-touch / FLAG_SECURE | **Measured** (API 30 + 36): filter works; FLAG_SECURE works but blanks the demo recording → not recommended for the recording build; patch for Secondary | `docs/security/OVERLAY_FLAG_EVALUATION.md` |
+| R3-10 FGS early return | Open; defensive patch in PR #23 (not provoked) | |
+| R3-1 Confirm UI | **Still NOT FOUND** | grep of `main` and all branches |
+| R3-2 Android inference | **Still NOT FOUND**; provisioning PR #22 and protocol PR #20 exist | `docs/security/MODEL_RUNTIME_CHECKLIST.md` |
+| New (High) | native `Error` escapes `ReplyCoordinator.process`; copied text forges ChatML turns in #20 | issue #24; comment on #20 |
+
+Release recommendation unchanged: **NO-GO** until the Confirm UI and a real offline engine with Pova 2 airplane-mode evidence exist.
