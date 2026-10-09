@@ -8,7 +8,7 @@ Owner: Miguel, Codex Tertiary. Review requested from Miguel and Elijah. Only `ap
 
 Repository: `merd-labs/akma`. Feature branch: `test/domain-contracts`. Dedicated worktree: `/home/apollo/Projects/Competitions/Year-2026/appbuildersph-hackathon-2026/akma-domain-tests`.
 
-Source base: `02df71a`, the local `chore/akma-bootstrap` commit. Tests run against that source plus the two new test files in this branch. Authentication and repository inspection identify the active GitHub account as `CodeExplorer430`, with repository push access. No credentials are recorded here.
+Source base: `02df71a`, the `chore/akma-bootstrap` commit. Tests run against that source plus the two new test files, committed unchanged in `c5f6c7ce923b4d4123dfe9842d48dcca5124d190`. Authentication and repository inspection identify the active GitHub account as `CodeExplorer430`, with repository push access. No credentials are recorded here.
 
 The delivered pack became available after planning. `COMMON_GITOPS_RULES.md`, `RUNBOOK_WORKTREES.md`, `SPEC_RECONCILIATION.md`, and the tertiary test prompt were read before edits. Reconciliation says the existing contract remains in force until an approved replacement merges. The owner explicitly selected a failing three-action product regression; existing four-action contract tests remain intact to expose the conflict.
 
@@ -69,6 +69,6 @@ All fixtures are synthetic and remain under `app/src/test`. Production uses `Una
 
 ## Delivery dependency
 
-At verification, remote `main` is `60580cd` and contains no Android implementation. Remote `chore/akma-bootstrap` is absent. A scoped draft PR must target the owner-published bootstrap branch, or `main` after the bootstrap merges. Creating a PR against current `main` would include unrelated bootstrap changes.
+During initial verification, remote `main` is `60580cd` and contains no Android implementation; remote `chore/akma-bootstrap` is absent. During final delivery, the bootstrap owner publishes `chore/akma-bootstrap` at `02df71ad7328e55e0762d3fde8f747ef44a04348`, matching this task's source base.
 
-The feature branch may be pushed without force under the task authorization. PR creation remains dependent on the bootstrap owner publishing a suitable base. No other owner's branch is published by this task. No merge is performed.
+The feature branch is pushed without force and its remote SHA is verified. The draft PR can target `chore/akma-bootstrap` with exactly three scoped files. After bootstrap merges, inspect the diff before retargeting to `main`. No other owner's branch is published by this task. No merge is performed. The action-cap regression remains the merge blocker.
