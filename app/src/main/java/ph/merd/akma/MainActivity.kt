@@ -43,6 +43,7 @@ import ph.merd.akma.ui.AkmaScreen
 import ph.merd.akma.ui.CopyUi
 import ph.merd.akma.ui.JourneyCallbacks
 import ph.merd.akma.ui.JourneyPanel
+import ph.merd.akma.ui.LiveJourneyPanel
 import ph.merd.akma.ui.ProtectedAkmaButton
 import ph.merd.akma.ui.back
 import ph.merd.akma.ui.canChooseDraft
@@ -125,77 +126,13 @@ class MainActivity : ComponentActivity() {
     /** The reply journey inside the Activity, for when the bubble is off or unavailable. */
     @Composable
     private fun ReplyScreen(onClose: () -> Unit) {
-        val state by session.replies.state.collectAsStateWithLifecycle()
-        var tone by remember { mutableStateOf(ReplyTone.PROFESSIONAL) }
-        var lastActionId by remember { mutableStateOf<String?>(null) }
-        var localNotice by remember { mutableStateOf<String?>(null) }
-        var copyError by remember { mutableStateOf(false) }
-        // Guards compare against the state this composition displayed, not a later one.
-        val displayed = state
-        val ui = displayed.toPanelUi(tone, lastActionId).let { it.copy(notice = localNotice ?: it.notice) }
-        val pasteEmpty = stringResource(R.string.akma_paste_empty)
-        val pasteTooLong = stringResource(R.string.akma_paste_too_long)
         Box(
             Modifier
                 .fillMaxSize()
                 .background(AkmaTheme.colors.bgSurface)
                 .windowInsetsPadding(WindowInsets.safeDrawing),
         ) {
-            JourneyPanel(
-                ui = ui,
-                callbacks = JourneyCallbacks(
-                    onClose = onClose,
-                    onMessageChange = { localNotice = null; session.replies.setMessage(it) },
-                    onPaste = { localNotice = pasteFromClipboard(pasteEmpty, pasteTooLong) },
-                    onAnalyze = { if (session.replies.state.value.canStartProcessing) session.replies.analyze() },
-                    onSelectAction = { id ->
-                        if (session.replies.state.value.canChooseDraft) {
-                            lastActionId = id
-                            session.replies.selectDraft(id, tone)
-                        }
-                    },
-                    onSelectTone = { if (session.replies.state.value.canChooseDraft) tone = it },
-                    onCancelConfirmation = {
-                        displayed.pendingConfirmation?.let { session.replies.cancelDisplayedDraft(it.id) }
-                        lastActionId = null
-                    },
-                    onCancelProcessing = { session.replies.cancelDisplayedProcessing(displayed) },
-                    onStartOver = {
-                        localNotice = null
-                        lastActionId = null
-                        session.replies.setMessage("")
-                    },
-                    onDraftChange = { copyError = false; session.replies.editDraft(it) },
-                    onRetry = { session.replies.retryLocalModel() },
-                    onDismissError = session.replies::recover,
-                ),
-                copyButton = { copy ->
-                    val copied = copy == CopyUi.Copied
-                    ProtectedAkmaButton(
-                        factory = { context -> copyButton(context) },
-                        text = stringResource(if (copied) R.string.akma_copied else R.string.akma_copy_reply),
-                        enabled = copy == CopyUi.Ready || copied,
-                        onClick = {
-                            copyError = !copyDraft(this@MainActivity, session.replies.state.value)
-                            if (!copyError) session.replies.copied()
-                        },
-                        variant = if (copied) ButtonVariant.Success else ButtonVariant.Primary,
-                        icon = if (copied) R.drawable.ic_akma_check else R.drawable.ic_akma_copy,
-                    )
-                    if (copyError) SecondaryText(stringResource(R.string.akma_copy_failed))
-                    else if (copied) SecondaryText(stringResource(R.string.akma_copied_hint))
-                },
-            ) { confirmation ->
-                // Replacing a token replaces its control, cancelling any in-flight tap.
-                key(confirmation.confirmationId) {
-                    ProtectedAkmaButton(
-                        factory = { context -> confirmationButton(context) },
-                        text = stringResource(R.string.akma_write_reply),
-                        enabled = confirmation.valid,
-                        onClick = { session.replies.confirmDisplayedDraft(confirmation.confirmationId) },
-                    )
-                }
-            }
+            LiveJourneyPanel(session.replies, session.demoMode, session.languageLabel, onClose)
         }
     }
 
@@ -229,28 +166,6 @@ class MainActivity : ComponentActivity() {
         } catch (_: RuntimeException) {
             // Losing the flag only shows Landing or Setup again on the next launch.
         }
-    }
-
-    /** Reads the clipboard only from an explicit Paste tap while this Activity has focus. */
-    private fun pasteFromClipboard(emptyNotice: String, tooLongNotice: String): String? {
-        if (!session.replies.state.value.canStartProcessing) return null
-        val text = try {
-            getSystemService(ClipboardManager::class.java)?.primaryClip
-                ?.takeIf { it.itemCount > 0 }
-                ?.getItemAt(0)?.coerceToText(this)?.toString().orEmpty()
-        } catch (_: RuntimeException) {
-            ""
-        }
-        return when {
-            text.isBlank() -> emptyNotice
-            text.length > ReplyValidation.MAX_TEXT_LENGTH -> tooLongNotice
-            else -> { session.replies.setMessage(text); null }
-        }
-    }
-
-    @Composable
-    private fun SecondaryText(text: String) {
-        Text(text, style = AkmaTheme.type.bodyM, color = AkmaTheme.colors.textSecondary)
     }
 
     override fun onResume() {
