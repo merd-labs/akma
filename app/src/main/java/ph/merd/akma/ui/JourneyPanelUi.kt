@@ -18,6 +18,10 @@ data class JourneyPanelUi(
     val reply: ReplyUi?,
     val copy: CopyUi,
     val canCancelProcessing: Boolean,
+    val canRetry: Boolean = false,
+    val canStartOver: Boolean = false,
+    /** Coordinator notice, shown verbatim. Null when nothing needs saying. */
+    val notice: String? = null,
 )
 
 enum class PanelStatus { ModelUnavailable, LoadingModel, Error }
@@ -35,12 +39,16 @@ data class ChoiceUi(
     val enabled: Boolean,
 )
 
-/** The exact staged request. The confirm control must confirm [confirmationId], never a newer one. */
+/**
+ * The exact staged request. The confirm control must confirm [confirmationId], never a newer one.
+ * [valid] is false when the staged request no longer matches live state; confirming is then disabled.
+ */
 data class ConfirmationUi(
     val confirmationId: Long,
     val actionLabel: String,
     val tone: ReplyTone,
     val message: String,
+    val valid: Boolean = true,
 )
 
 sealed interface ReplyUi {
@@ -52,7 +60,8 @@ enum class CopyUi { Hidden, Disabled, Ready, Copied }
 
 /**
  * Maps coordinator state to panel content.
- * [selectedTone] and [lastSelectedActionId] are UI-held choices; a pending confirmation overrides both.
+ * [selectedTone] and [lastSelectedActionId] are UI-held choices; a pending confirmation overrides both
+ * and locks the choices, so the staged action and tone cannot change until the user cancels.
  * Analysis reaching ReplyState is already normalized, so its action labels are catalog labels.
  */
 fun ReplyState.toPanelUi(selectedTone: ReplyTone, lastSelectedActionId: String?): JourneyPanelUi {
@@ -80,6 +89,9 @@ fun ReplyState.toPanelUi(selectedTone: ReplyTone, lastSelectedActionId: String?)
         reply = null,
         copy = CopyUi.Hidden,
         canCancelProcessing = busy,
+        canRetry = canRetryLocalModel,
+        canStartOver = !busy && pending == null && phase in setOf(ReplyPhase.ChoosingAction, ReplyPhase.Editing, ReplyPhase.Copied),
+        notice = notice?.takeIf { it.isNotBlank() && phase != ReplyPhase.Copied },
     )
     return when (phase) {
         ReplyPhase.ModelUnavailable -> base.copy(
@@ -93,9 +105,15 @@ fun ReplyState.toPanelUi(selectedTone: ReplyTone, lastSelectedActionId: String?)
         ReplyPhase.Analyzing -> base.copy(reading = true)
         ReplyPhase.ChoosingAction -> base.copy(
             intent = intent,
-            choice = choice(enabled = true),
+            choice = choice(enabled = canChooseDraft),
             confirmation = pending?.let {
-                ConfirmationUi(it.id, it.action.label, it.request.tone, it.request.original.message)
+                ConfirmationUi(
+                    confirmationId = it.id,
+                    actionLabel = it.action.label,
+                    tone = it.request.tone,
+                    message = it.request.original.message,
+                    valid = displayedConfirmation()?.id == it.id,
+                )
             },
             copy = CopyUi.Disabled,
         )
@@ -107,7 +125,7 @@ fun ReplyState.toPanelUi(selectedTone: ReplyTone, lastSelectedActionId: String?)
         )
         ReplyPhase.Editing, ReplyPhase.Copied -> base.copy(
             intent = intent,
-            choice = choice(enabled = true),
+            choice = choice(enabled = canChooseDraft),
             reply = ReplyUi.Draft(draft),
             copy = when {
                 !canCopy -> CopyUi.Disabled

@@ -1,6 +1,7 @@
 package ph.merd.akma
 
 import android.Manifest
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -8,22 +9,18 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -31,27 +28,32 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import ph.merd.akma.domain.ReplyPhase
 import ph.merd.akma.domain.ReplyTone
-import ph.merd.akma.domain.ActionCatalog
+import ph.merd.akma.domain.ReplyValidation
 import ph.merd.akma.overlay.OverlayService
-import ph.merd.akma.ui.copyDraft
-import ph.merd.akma.ui.statusText
-import ph.merd.akma.ui.canStartProcessing
+import ph.merd.akma.ui.CopyUi
+import ph.merd.akma.ui.JourneyCallbacks
+import ph.merd.akma.ui.JourneyPanel
+import ph.merd.akma.ui.ProtectedAkmaButton
 import ph.merd.akma.ui.canChooseDraft
-import ph.merd.akma.ui.displayedConfirmation
-import ph.merd.akma.ui.selectDraft
-import ph.merd.akma.ui.confirmDisplayedDraft
+import ph.merd.akma.ui.canStartProcessing
 import ph.merd.akma.ui.cancelDisplayedDraft
+import ph.merd.akma.ui.cancelDisplayedProcessing
+import ph.merd.akma.ui.components.AkmaButton
+import ph.merd.akma.ui.components.ButtonVariant
+import ph.merd.akma.ui.components.SetupCard
+import ph.merd.akma.ui.components.SetupStepCard
+import ph.merd.akma.ui.confirmDisplayedDraft
 import ph.merd.akma.ui.confirmationButton
 import ph.merd.akma.ui.copyButton
-import ph.merd.akma.ui.canRetryLocalModel
+import ph.merd.akma.ui.copyDraft
 import ph.merd.akma.ui.retryLocalModel
-import ph.merd.akma.ui.cancelDisplayedProcessing
+import ph.merd.akma.ui.selectDraft
+import ph.merd.akma.ui.theme.AkmaTheme
+import ph.merd.akma.ui.theme.AkmaTokens
+import ph.merd.akma.ui.toPanelUi
 
 class MainActivity : ComponentActivity() {
     private val session get() = application as AkmaApplication
@@ -66,138 +68,135 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Light Akma surfaces need dark system-bar icons.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(AkmaTokens.BG_SURFACE.toInt(), AkmaTokens.TEXT_PRIMARY.toInt()),
+            navigationBarStyle = SystemBarStyle.light(AkmaTokens.BG_SURFACE.toInt(), AkmaTokens.TEXT_PRIMARY.toInt()),
+        )
         refreshPermissions()
         setContent {
             val state by session.replies.state.collectAsStateWithLifecycle()
             val overlay by session.overlayStatus.collectAsStateWithLifecycle()
             var tone by remember { mutableStateOf(ReplyTone.PROFESSIONAL) }
+            var lastActionId by remember { mutableStateOf<String?>(null) }
+            var localNotice by remember { mutableStateOf<String?>(null) }
             var copyError by remember { mutableStateOf(false) }
-            MaterialTheme {
-                Scaffold { contentPadding ->
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(contentPadding)
-                            .verticalScroll(rememberScrollState()).padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineLarge)
-                        Text(stringResource(R.string.tagline))
-                        Text(stringResource(R.string.workflow_intro))
-                        Text(if (overlayGranted) "Overlay permission granted" else "Permission required for overlay. Activity works without it.")
-                        if (!overlayGranted) {
-                            Button(onClick = ::requestOverlayPermission) { Text("Grant overlay permission") }
-                        }
-                        if (!notificationGranted) Text("Notifications disabled. Use Close in the overlay or Activity to end the session.")
-                        Button(onClick = ::requestOverlayStart, enabled = overlayGranted && !overlay.open) { Text("Open overlay") }
-                        Button(onClick = {
-                            stopService(Intent(this@MainActivity, OverlayService::class.java))
-                        }, enabled = overlay.open) { Text("Close overlay") }
-                        overlay.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        Text(state.statusText(), style = MaterialTheme.typography.titleMedium)
-                        state.notice?.let { Text(it) }
-                        if (state.busy) {
-                            LinearProgressIndicator(Modifier.fillMaxWidth())
-                            key(state) {
-                                Button(onClick = { session.replies.cancelDisplayedProcessing(state) }) { Text("Cancel and clear session") }
-                            }
-                        }
-                        if (state.canRetryLocalModel) {
-                            Button(onClick = { session.replies.retryLocalModel() }) { Text("Retry local model") }
-                        }
-                        if (state.phase == ReplyPhase.Error) {
-                            Button(onClick = session.replies::recover) { Text("Dismiss error and retry") }
-                        }
-                        OutlinedTextField(
-                            value = state.message,
-                            onValueChange = session.replies::setMessage,
-                            label = { Text("Message — use keyboard Paste") },
-                            supportingText = { Text("${state.message.length}/1,500 characters") },
-                            enabled = !state.busy,
-                            modifier = Modifier.fillMaxWidth(),
-                            minLines = 3,
-                        )
-                        Button(
-                            onClick = { if (session.replies.state.value.canStartProcessing) session.replies.analyze() },
-                            enabled = state.canStartProcessing && state.phase != ReplyPhase.ModelUnavailable,
-                        ) { Text("Analyze locally") }
-                        state.analysis?.let { analysis ->
-                            Text(analysis.summary)
-                            val displayedTone = state.pendingConfirmation?.request?.tone ?: tone
-                            ReplyTone.entries.forEach { choice ->
-                                Button(onClick = {
-                                    if (session.replies.state.value.canChooseDraft) tone = choice
-                                }, enabled = state.canChooseDraft) {
-                                    Text(if (displayedTone == choice) "Selected: ${choice.name}" else choice.name)
+            // Guards compare against the state this composition displayed, not a later one.
+            val displayed = state
+            val ui = displayed.toPanelUi(tone, lastActionId).let { it.copy(notice = localNotice ?: it.notice) }
+            val pasteEmpty = stringResource(R.string.akma_paste_empty)
+            val pasteTooLong = stringResource(R.string.akma_paste_too_long)
+            AkmaTheme {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(AkmaTheme.colors.bgSurface)
+                        .windowInsetsPadding(WindowInsets.safeDrawing),
+                ) {
+                    JourneyPanel(
+                        ui = ui,
+                        callbacks = JourneyCallbacks(
+                            onMessageChange = { localNotice = null; session.replies.setMessage(it) },
+                            onPaste = { localNotice = pasteFromClipboard(pasteEmpty, pasteTooLong) },
+                            onAnalyze = { if (session.replies.state.value.canStartProcessing) session.replies.analyze() },
+                            onSelectAction = { id ->
+                                if (session.replies.state.value.canChooseDraft) {
+                                    lastActionId = id
+                                    session.replies.selectDraft(id, tone)
                                 }
-                            }
-                            analysis.actions.forEach { action ->
-                                val canonical = ActionCatalog.action(action.id)
-                                Button(onClick = { session.replies.selectDraft(action.id, tone) },
-                                    enabled = state.canChooseDraft && canonical == action) {
-                                    Text(canonical?.label ?: "Unavailable action")
-                                }
-                            }
-                        }
-                        state.pendingConfirmation?.let { displayed ->
-                            // Replacing a token replaces its controls, cancelling any in-flight tap.
-                            key(displayed.id) {
-                                val confirmation = state.displayedConfirmation()
-                                if (confirmation != null) {
-                                    Text("Review before generating", style = MaterialTheme.typography.titleMedium)
-                                    Text("Action: ${confirmation.action.label}")
-                                    Text("Tone: ${confirmation.request.tone.name}")
-                                    Text("Message context (untrusted copied text):")
-                                    Text(confirmation.request.original.message)
-                                    if (confirmation.request.original.history.isNotBlank()) {
-                                        Text("History (untrusted text):")
-                                        Text(confirmation.request.original.history)
-                                    }
-                                    confirmation.request.original.relationship?.takeIf { it.isNotBlank() }?.let {
-                                        Text("Relationship (untrusted text):")
-                                        Text(it)
-                                    }
-                                    if (confirmation.request.userInstruction.isNotBlank()) {
-                                        Text("Instruction (untrusted text):")
-                                        Text(confirmation.request.userInstruction)
-                                    }
-                                } else Text("Selection no longer valid. Cancel and choose again.")
-                                Text("Generating a draft does not send or accept anything. Cancel clears this session.")
-                                AndroidView(
-                                    factory = { context -> confirmationButton(context) },
-                                    update = { button ->
-                                        button.isEnabled = confirmation != null
-                                        button.setOnClickListener { session.replies.confirmDisplayedDraft(displayed.id) }
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                                Button(onClick = { session.replies.cancelDisplayedDraft(displayed.id) }) { Text("Cancel and clear session") }
-                            }
-                        }
-                        if (state.phase in setOf(ReplyPhase.Editing, ReplyPhase.Copied)) {
-                            Text("Review before copying. Paste and send manually.")
-                            OutlinedTextField(
-                                value = state.draft,
-                                onValueChange = { copyError = false; session.replies.editDraft(it) },
-                                label = { Text("Editable draft") },
-                                modifier = Modifier.fillMaxWidth(),
-                                minLines = 3,
-                            )
-                            AndroidView(
+                            },
+                            onSelectTone = { if (session.replies.state.value.canChooseDraft) tone = it },
+                            onCancelConfirmation = {
+                                displayed.pendingConfirmation?.let { session.replies.cancelDisplayedDraft(it.id) }
+                                lastActionId = null
+                            },
+                            onCancelProcessing = { session.replies.cancelDisplayedProcessing(displayed) },
+                            onStartOver = {
+                                localNotice = null
+                                lastActionId = null
+                                session.replies.setMessage("")
+                            },
+                            onDraftChange = { copyError = false; session.replies.editDraft(it) },
+                            onRetry = { session.replies.retryLocalModel() },
+                            onDismissError = session.replies::recover,
+                        ),
+                        copyButton = { copy ->
+                            val copied = copy == CopyUi.Copied
+                            ProtectedAkmaButton(
                                 factory = { context -> copyButton(context) },
-                                update = { button ->
-                                    button.isEnabled = state.canCopy
-                                    button.setOnClickListener {
-                                        copyError = !copyDraft(this@MainActivity, session.replies.state.value)
-                                        if (!copyError) session.replies.copied()
-                                    }
+                                text = stringResource(if (copied) R.string.akma_copied else R.string.akma_copy_reply),
+                                enabled = copy == CopyUi.Ready || copied,
+                                onClick = {
+                                    copyError = !copyDraft(this@MainActivity, session.replies.state.value)
+                                    if (!copyError) session.replies.copied()
                                 },
-                                modifier = Modifier.fillMaxWidth(),
+                                variant = if (copied) ButtonVariant.Success else ButtonVariant.Primary,
+                                icon = if (copied) R.drawable.ic_akma_check else R.drawable.ic_akma_copy,
                             )
-                            if (copyError) Text("Copy failed. Select the draft and copy manually.")
+                            if (copyError) SecondaryText(stringResource(R.string.akma_copy_failed))
+                            else if (copied) SecondaryText(stringResource(R.string.akma_copied_hint))
+                        },
+                        footer = { OverlaySetup(overlay) },
+                    ) { confirmation ->
+                        // Replacing a token replaces its control, cancelling any in-flight tap.
+                        key(confirmation.confirmationId) {
+                            ProtectedAkmaButton(
+                                factory = { context -> confirmationButton(context) },
+                                text = stringResource(R.string.akma_write_reply),
+                                enabled = confirmation.valid,
+                                onClick = { session.replies.confirmDisplayedDraft(confirmation.confirmationId) },
+                            )
                         }
                     }
                 }
             }
+        }
+    }
+
+    /** Reads the clipboard only from an explicit Paste tap while this Activity has focus. */
+    private fun pasteFromClipboard(emptyNotice: String, tooLongNotice: String): String? {
+        if (!session.replies.state.value.canStartProcessing) return null
+        val text = try {
+            getSystemService(ClipboardManager::class.java)?.primaryClip
+                ?.takeIf { it.itemCount > 0 }
+                ?.getItemAt(0)?.coerceToText(this)?.toString().orEmpty()
+        } catch (_: RuntimeException) {
+            ""
+        }
+        return when {
+            text.isBlank() -> emptyNotice
+            text.length > ReplyValidation.MAX_TEXT_LENGTH -> tooLongNotice
+            else -> { session.replies.setMessage(text); null }
+        }
+    }
+
+    @Composable
+    private fun SecondaryText(text: String) {
+        Text(text, style = AkmaTheme.type.bodyM, color = AkmaTheme.colors.textSecondary)
+    }
+
+    @Composable
+    private fun OverlaySetup(overlay: OverlayStatus) {
+        SetupCard {
+            SetupStepCard(
+                number = 1,
+                title = stringResource(R.string.akma_overlay_title),
+                body = stringResource(if (overlayGranted) R.string.akma_overlay_ready else R.string.akma_overlay_body),
+                active = true,
+            )
+            if (!overlayGranted) {
+                AkmaButton(stringResource(R.string.akma_overlay_grant), ::requestOverlayPermission)
+            } else if (overlay.open) {
+                AkmaButton(
+                    stringResource(R.string.akma_overlay_close),
+                    { stopService(Intent(this@MainActivity, OverlayService::class.java)) },
+                    variant = ButtonVariant.Secondary,
+                )
+            } else {
+                AkmaButton(stringResource(R.string.akma_overlay_open), ::requestOverlayStart, variant = ButtonVariant.Secondary)
+            }
+            if (!notificationGranted) SecondaryText(stringResource(R.string.akma_notifications_off))
+            overlay.error?.let { SecondaryText(it) }
         }
     }
 
