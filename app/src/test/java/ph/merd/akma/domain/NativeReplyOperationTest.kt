@@ -107,6 +107,104 @@ class NativeReplyOperationTest {
         }
     }
 
+    @Test fun oversizedOutputRequestsCancellationBeforeTerminalCallback() = runTest {
+        val operation = NativeReplyOperation(5)
+        lateinit var callbacks: NativeReplyCallbacks
+        var cancellations = 0
+        var failure: Throwable? = null
+        val job = launch {
+            try { operation.await({ callbacks = it }, { cancellations++ }) }
+            catch (error: Exception) { failure = error }
+        }
+        try {
+            runCurrent(); callbacks.onText("123456"); runCurrent()
+            assertEquals(1, cancellations)
+            assertFalse(operation.completed)
+            assertFalse(job.isCompleted)
+            callbacks.onComplete(); runCurrent()
+            assertTrue(failure is IllegalStateException)
+            assertEquals("Native reply exceeds the raw text limit.", failure?.message)
+        } finally { callbacks.onComplete(); runCurrent() }
+    }
+
+    @Test fun oversizedOutputWithoutTerminalCallbackQuarantinesWithinCleanupDeadline() = runTest {
+        var quarantines = 0
+        val operation = NativeReplyOperation(5, onCancellationFailure = { quarantines++ })
+        lateinit var callbacks: NativeReplyCallbacks
+        var cancellations = 0
+        var failure: Throwable? = null
+        val job = launch {
+            try { operation.await({ callbacks = it }, { cancellations++ }) }
+            catch (error: Exception) { failure = error }
+        }
+        try {
+            runCurrent(); callbacks.onText("123456"); runCurrent()
+            advanceTimeBy(5_001); runCurrent()
+            assertTrue(job.isCompleted)
+            assertEquals(1, cancellations)
+            assertEquals(1, quarantines)
+            assertFalse(operation.completed)
+            assertTrue(failure is IllegalStateException)
+            callbacks.onText("late"); callbacks.onComplete(); runCurrent()
+            assertFalse(operation.completed)
+        } finally { callbacks.onComplete(); runCurrent() }
+    }
+
+    @Test fun callbackConversionFailureCancelsButCannotCloseBeforeTerminal() = runTest {
+        val operation = NativeReplyOperation(20)
+        lateinit var callbacks: NativeReplyCallbacks
+        var cancellations = 0
+        var failure: Throwable? = null
+        val conversion = IllegalStateException("Synthetic callback conversion")
+        val job = launch {
+            try { operation.await({ callbacks = it }, { cancellations++ }) }
+            catch (error: Exception) { failure = error }
+        }
+        runCurrent(); callbacks.onText("Partial"); callbacks.onFailure(conversion); runCurrent()
+        assertEquals(1, cancellations)
+        assertFalse(operation.completed)
+        assertFalse(job.isCompleted)
+        callbacks.onText("Late text"); callbacks.onComplete(CancellationException("Synthetic native stop")); runCurrent()
+        assertTrue(job.isCompleted)
+        assertTrue(failure === conversion || failure?.cause === conversion)
+    }
+
+    @Test fun callbackConversionFatalFailureReachesCoroutineOwnerAfterTerminal() = runTest {
+        listOf<Throwable>(UnsatisfiedLinkError("Synthetic binding"), OutOfMemoryError("Synthetic OOM"), InternalError("Synthetic fatal")).forEach { failure ->
+            val escaped = mutableListOf<Throwable>()
+            val owner = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler) +
+                CoroutineExceptionHandler { _, error -> escaped += error })
+            try {
+                val operation = NativeReplyOperation(20)
+                lateinit var callbacks: NativeReplyCallbacks
+                var cancellations = 0
+                owner.launch { operation.await({ callbacks = it }, { cancellations++ }) }
+                runCurrent(); callbacks.onFailure(failure); runCurrent()
+                assertEquals(1, cancellations)
+                assertFalse(operation.completed)
+                callbacks.onComplete(); runCurrent()
+                assertEquals(1, escaped.size)
+                assertEquals(failure.javaClass, escaped.single().javaClass)
+            } finally { owner.cancel(); runCurrent() }
+        }
+    }
+
+    @Test fun nativeFatalTerminalIsNotHiddenByPriorOutputOverflow() = runTest {
+        val escaped = mutableListOf<Throwable>()
+        val owner = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler) +
+            CoroutineExceptionHandler { _, error -> escaped += error })
+        try {
+            val operation = NativeReplyOperation(5)
+            lateinit var callbacks: NativeReplyCallbacks
+            val fatal = InternalError("Synthetic fatal after overflow")
+            owner.launch { operation.await({ callbacks = it }, {}) }
+            runCurrent(); callbacks.onText("123456"); runCurrent()
+            callbacks.onComplete(fatal); runCurrent()
+            assertEquals(1, escaped.size)
+            assertTrue(escaped.single() is InternalError)
+        } finally { owner.cancel(); runCurrent() }
+    }
+
     @Test fun cancellationBeforeStartupNeverInvokesNativeGeneration() = runTest {
         val operation = NativeReplyOperation(20)
         var starts = 0

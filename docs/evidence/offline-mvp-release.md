@@ -188,3 +188,48 @@ runs; report their actual outcome separately rather than borrowing the source-he
 
 Physical model suitability and final recovery acceptance, current-head hosted CI and production
 distribution signing remain open. Source compilation or successful model packaging alone is not a release PASS.
+
+## Final runtime and live UI reconciliation
+
+Primary fetched live state on October 10 before editing. PR27 was `1c8e1d1`, main
+`b31a6f0`, PR29 `864d938b933d8900ecf21de5c5c30a5eebf44c72`, PR30 `ef1d213`,
+and the newly published live UI PR31 `224caa2`. PR31 includes both PR27 and PR30;
+its design kit must not be reapplied. PR28 is already an ancestor through `9157656`.
+Source ownership was coordinated on PR29 and PR31 before production edits.
+
+The PR29 merge had one actual Kotlin conflict, `LiteRtReplyEngine.kt`. Resolution:
+
+- Keep PR27's `RuntimeRecovery`, `NativeHandleSlot`, bounded terminal wait, uncertain-handle
+  quarantine, restart notice, receipt invalidation and typed provisioning failures.
+- Port callback conversion failure handling, early oversized-output cancellation and
+  first-text callback timing through the existing native operation. Cancellation runs on
+  the owning coroutine; a callback conversion failure is never treated as native completion.
+- Keep the approved shared contract and deterministic category selection from copied input.
+  Exclude PR29's HYBRID enum/validation/test changes because model purpose must not redefine
+  the domain category. Existing assertions are retained; no failing test is disabled.
+- Use one strict Gson 2.14.0 streaming parser for model output. Require string fields and
+  complete JSON documents; reject duplicate expected fields and malformed output. Preserve
+  the validated plain-text draft fallback, output sanitization, canonical actions and
+  immutable two-step confirmation. The competing PR20 pipeline remains excluded.
+- Retain PR29's historical Camon evidence with its stated failures and artifact identity.
+  Retain its Windows build helper, but refuse to overwrite an existing mismatched model asset.
+
+The new early-overflow regressions first reproduced two failures in the original bridge:
+12 focused tests, two failures, exit 1, `BUILD FAILED in 4m 39s`. The first revised compile
+also failed on Kotlin generic inference in `select`; the result type was made explicit.
+These failures remain recorded rather than omitted from the final result.
+
+The official final-device gate is now Rhence's owner-reported Infinix X6815B, Android 11/API30;
+identity and hardware still require observation in his exclusive slot. English offline
+fidelity is required; Taglish is optional and must not be promised without evidence.
+Quaternary released the Pova slot. His older frozen release `3e9fe186...` completed English
+Reschedule/Professional with human fidelity PASS, but Filipino fidelity FAIL. Those results
+cannot establish acceptance for a new source, APK or Infinix device.
+
+Miguel selected the existing Android development signing key for the demo. A non-debuggable
+release variant signed with that key is development-signed, not a production distribution
+identity. New artifacts require new hashes and matching physical acceptance; previous frozen
+artifacts remain intact. Full combined gates, hosted CI and final team approval are pending
+until the actual results below are recorded.
+
+Focused reconciliation gate: `:app:testDebugUnitTest --tests ph.merd.akma.domain.NativeReplyOperationTest --tests ph.merd.akma.domain.LocalModelOutputTest` PASS, exit 0; 21 tests, zero failures/errors/skips. Staged redacted Gitleaks scan, whitespace, actionlint and PowerShell syntax PASS. JDK17 standalone artifact verifier fixtures PASS (13 cases), not inference proof.
