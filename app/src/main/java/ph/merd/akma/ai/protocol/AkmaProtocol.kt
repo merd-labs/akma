@@ -12,14 +12,12 @@ import ph.merd.akma.domain.DraftRequest
 
 object AkmaProtocol {
 
-    private const val SYSTEM_PROMPT = """You are Akma, a helpful, intelligent assistant. 
+    val SYSTEM_PROMPT = """You are Akma, a helpful, intelligent assistant. 
 You extract intentions from messages and write replies from the user's perspective. 
 Never invent facts, dates, or commitments. Keep output concise and respect the requested language (English, Tagalog, or Taglish)."""
 
     fun compileAnalysisPrompt(request: AnalyzeRequest): String {
         val prompt = StringBuilder()
-        prompt.append("<|im_start|>system\n").append(SYSTEM_PROMPT).append("<|im_end|>\n")
-        prompt.append("<|im_start|>user\n")
         prompt.append("Analyze the following message. Identify its category and a short summary of its purpose. ")
         prompt.append("The category MUST be exactly one of: interview_invitation, meeting, reschedule_request, follow_up, complaint, casual, other.\n\n")
         
@@ -29,7 +27,6 @@ Never invent facts, dates, or commitments. Keep output concise and respect the r
         prompt.append("Message:\n").append(request.message).append("\n\n")
         prompt.append("Output strictly valid JSON with no markdown formatting. Schema:\n")
         prompt.append("{\"category\": \"<category>\", \"summary\": \"<short purpose>\", \"language\": \"<english|tagalog|taglish>\"}")
-        prompt.append("<|im_end|>\n<|im_start|>assistant\n")
         return prompt.toString()
     }
 
@@ -92,14 +89,18 @@ Never invent facts, dates, or commitments. Keep output concise and respect the r
 
     fun compileDraftPrompt(request: DraftRequest): String {
         val prompt = StringBuilder()
-        prompt.append("<|im_start|>system\n").append(SYSTEM_PROMPT).append("<|im_end|>\n")
-        prompt.append("<|im_start|>user\n")
         prompt.append("Write a reply to the following message. ")
         prompt.append("Write from the recipient's perspective. ")
         
         val action = ActionCatalog.action(request.selectedActionId)
         if (action != null) {
             prompt.append("The reply should: ${action.label}. ")
+        }
+        
+        when (request.selectedActionId) {
+            "reschedule" -> prompt.append("Ask the sender for a different interview time. Do not say you are available Friday at 10 or accept that time. ")
+            "clarify", "ask_agenda", "ask_to_clarify" -> prompt.append("Ask for details before agreeing to anything. ")
+            "decline" -> prompt.append("Politely decline without an invented excuse. ")
         }
         
         prompt.append("Tone: ${request.tone.name.lowercase()}. ")
@@ -114,7 +115,6 @@ Never invent facts, dates, or commitments. Keep output concise and respect the r
             prompt.append("Conversation History:\n").append(request.original.history).append("\n\n")
         }
         prompt.append("Message:\n").append(request.original.message).append("\n")
-        prompt.append("<|im_end|>\n<|im_start|>assistant\n")
         return prompt.toString()
     }
 

@@ -17,8 +17,6 @@ class AkmaProtocolTest {
         val prompt = AkmaProtocol.compileAnalysisPrompt(request)
         assertTrue(prompt.contains("Let's meet tomorrow."))
         assertTrue(prompt.contains("Output strictly valid JSON"))
-        assertTrue(prompt.contains("<|im_start|>user"))
-        assertTrue(prompt.contains("<|im_end|>"))
     }
 
     @Test

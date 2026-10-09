@@ -52,61 +52,25 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine {
 
     override suspend fun analyze(request: AnalyzeRequest): Result<AnalysisResult> = guarded {
         ReplyValidation.validate(request).getOrThrow()
-        val input = org.json.JSONObject().put("incoming_message", request.message)
-            .put("previous_context", request.history).put("relationship", request.relationship).toString()
-        val raw = generate(prompt("analyze_v2.txt"), input, 192)
-        val json = org.json.JSONObject(raw.trim())
-        require(raw.trim().startsWith("{") && raw.trim().endsWith("}")) { "Malformed analysis." }
-        val purpose = json.getString("message_purpose")
-        val category = categoryFor(request.message, purpose)
-        val actions = ActionCatalog.actionsFor(category).take(ReplyValidation.MAX_ACTIONS)
-        AnalysisResult(category, purpose, true, actions, AnalysisSource.LOCAL_MODEL)
-            .also { ReplyValidation.validate(it).getOrThrow() }
+        val input = ph.merd.akma.ai.protocol.AkmaProtocol.compileAnalysisPrompt(request)
+        val raw = generate(ph.merd.akma.ai.protocol.AkmaProtocol.SYSTEM_PROMPT, input, 192)
+        ph.merd.akma.ai.protocol.AkmaProtocol.decodeAnalysis(raw).getOrThrow().also { 
+            ReplyValidation.validate(it).getOrThrow() 
+        }
     }
 
     override suspend fun draft(request: DraftRequest): Result<String> = guarded {
         ReplyValidation.validate(request.original).getOrThrow()
-        val selected = ActionCatalog.action(request.selectedActionId) ?: error("Unknown action.")
-        val input = org.json.JSONObject().put("incoming_message", request.original.message)
-            .put("previous_context", request.original.history)
-            .put("relationship", request.original.relationship)
-            .put("selected_action_id", request.selectedActionId)
-            .put("selected_intention", selected.label)
-            .put("tone", request.tone.name.lowercase())
-            .put("user_instructions", request.userInstruction).toString()
-        val actionRule = when (request.selectedActionId) {
-            "reschedule" -> "The user selected RESCHEDULE. Ask the sender for a different interview time. Do not say you are available Friday at 10 or accept that time."
-            "clarify", "ask_agenda", "ask_to_clarify" -> "The user selected a question. Ask for details before agreeing to anything."
-            "decline" -> "The user selected DECLINE. Politely decline without an invented excuse."
-            else -> "Follow the selected action exactly."
-        }
-        val raw = generate(prompt("generate_v2.txt") + "\n" + actionRule, input, 128).trim()
-        val draft = if (raw.startsWith("{") && raw.endsWith("}")) {
-            org.json.JSONObject(raw).getString("reply").trim()
-        } else raw
-        require(!draft.startsWith("{") && !draft.endsWith("}")) { "Malformed draft." }
+        val input = ph.merd.akma.ai.protocol.AkmaProtocol.compileDraftPrompt(request)
+        val raw = generate(ph.merd.akma.ai.protocol.AkmaProtocol.SYSTEM_PROMPT, input, 128)
+        
+        val draft = ph.merd.akma.ai.protocol.AkmaProtocol.validateParsedReply(raw).getOrThrow()
         if (request.selectedActionId == "reschedule") {
             require(!Regex("(?i)\\b(i(?:'m| am)|we(?:'re| are))\\s+(?:available|free)\\b").containsMatchIn(draft)) {
                 "Draft contradicts reschedule action."
             }
         }
         draft.also { ReplyValidation.validateDraft(it).getOrThrow() }
-    }
-
-    private fun prompt(name: String): String = app.assets.open("prompts/$name")
-        .bufferedReader(Charsets.UTF_8).use { it.readText() }
-
-    private fun categoryFor(message: String, purpose: String): String {
-        val text = "$message $purpose".lowercase()
-        return when {
-            "interview" in text -> "interview_invitation"
-            "reschedul" in text || "move our meeting" in text -> "reschedule_request"
-            "meeting" in text || "call" in text -> "meeting"
-            "complain" in text || "late delivery" in text || "issue with" in text -> "complaint"
-            "deadline" in text || "update" in text || "finish" in text -> "follow_up"
-            "friend" in text || "hang out" in text || "catch up" in text -> "casual"
-            else -> "other"
-        }
     }
     private fun generate(instruction: String, input: String, maxTokens: Int): String {
         val active = engine ?: throw ModelUnavailableException()
