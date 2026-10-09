@@ -1,5 +1,6 @@
 package ph.merd.akma.overlay
 
+import android.app.AppOpsManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,10 +11,16 @@ import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
+import android.widget.Button
+import android.widget.FrameLayout
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,13 +30,34 @@ import ph.merd.akma.AkmaApplication
 import ph.merd.akma.MainActivity
 import ph.merd.akma.OverlayStatus
 import ph.merd.akma.R
+import ph.merd.akma.domain.ReplyCoordinator
 
 /** User-started only. No clipboard listener, background restart, or automatic message capture. */
 class OverlayService : Service() {
     private val session get() = application as AkmaApplication
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var windows: WindowManager
-    private var panel: View? = null
+    private var panel: OverlayPanel? = null
+    private var host: FrameLayout? = null
+    private var panelCollector: Job? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val lifecycle = OverlaySession(::attachBubble, ::releaseWindow, ::displayPanel, ::displayBubble, ::clearReplySession)
+    private var watchingPermission = false
+    private val permissionListener = AppOpsManager.OnOpChangedListener { operation, changedPackage ->
+        if (operation == AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW && changedPackage == packageName) {
+            mainHandler.post {
+                if (!lifecycle.closed && !Settings.canDrawOverlays(this)) {
+                    fail("Overlay permission revoked. Continue in the Activity.")
+                }
+            }
+        }
+    }
+    private val attachmentListener = object : View.OnAttachStateChangeListener {
+        override fun onViewAttachedToWindow(view: View) = Unit
+        override fun onViewDetachedFromWindow(view: View) {
+            if (!lifecycle.closed) fail("Overlay closed by Android. Open it again from the Activity.")
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -37,8 +65,8 @@ class OverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_CLOSE) {
-            stopSelf()
+        if (lifecycle.closed || !isOverlayShowRequest(intent != null, intent?.action)) {
+            closeOverlay()
             return START_NOT_STICKY
         }
         try {
@@ -48,8 +76,8 @@ class OverlayService : Service() {
             val close = PendingIntent.getService(this, 1, Intent(this, OverlayService::class.java).setAction(ACTION_CLOSE), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             val notification = Notification.Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("Akma overlay is open")
-                .setContentText("User-controlled session. Tap Close to stop.")
+                .setContentTitle("Akma assistant is on")
+                .setContentText("Tap the bubble to paste. Close stops the assistant.")
                 .setContentIntent(open)
                 .setOngoing(true)
                 .addAction(Notification.Action.Builder(null, "Open Akma", open).build())
@@ -58,26 +86,8 @@ class OverlayService : Service() {
             if (Build.VERSION.SDK_INT >= 34) {
                 startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
             } else startForeground(NOTIFICATION_ID, notification)
-            if (!Settings.canDrawOverlays(this)) {
+            if (!lifecycle.show(Settings.canDrawOverlays(this))) {
                 fail("Overlay permission required. Continue in the Activity.")
-            } else if (panel == null) {
-                val view = OverlayPanel(this, session.replies, ::stopSelf)
-                val width = minOf((340 * resources.displayMetrics.density).toInt(), resources.displayMetrics.widthPixels - 32)
-                val params = WindowManager.LayoutParams(
-                    width,
-                    WindowManager.LayoutParams.WRAP_CONTENT,
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-                    PixelFormat.TRANSLUCENT,
-                ).apply {
-                    gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                    y = (48 * resources.displayMetrics.density).toInt()
-                    softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-                }
-                windows.addView(view, params)
-                panel = view
-                session.overlayStatus.value = OverlayStatus(open = true)
-                scope.launch { session.replies.state.collect { view.render(it) } }
             }
         } catch (_: RuntimeException) {
             fail("Overlay unavailable. Continue in the Activity and retry.")
@@ -85,20 +95,127 @@ class OverlayService : Service() {
         return START_NOT_STICKY
     }
 
+    private fun attachBubble() {
+        val root = FrameLayout(this).apply {
+            isSaveEnabled = false
+            importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+        }
+        host = root
+        root.addOnAttachStateChangeListener(attachmentListener)
+        root.addView(bubble())
+        windows.addView(root, bubbleParams())
+        getSystemService(AppOpsManager::class.java).startWatchingMode(
+            AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, packageName, permissionListener,
+        )
+        watchingPermission = true
+        check(Settings.canDrawOverlays(this))
+        session.overlayStatus.value = OverlayStatus(open = true)
+    }
+
+    private fun bubble() = Button(this).apply {
+        text = "Akma"
+        contentDescription = "Open Akma panel"
+        setOnClickListener {
+            try { lifecycle.expand() }
+            catch (_: RuntimeException) { fail("Panel unavailable. Continue in the Activity.") }
+        }
+    }
+
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+    private fun bubbleParams() = WindowManager.LayoutParams(
+        dp(64), dp(64), WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+        PixelFormat.TRANSLUCENT,
+    ).apply {
+        gravity = Gravity.END or Gravity.CENTER_VERTICAL
+        x = dp(12)
+    }
+
+    private fun panelParams() = WindowManager.LayoutParams(
+        minOf(dp(340), resources.displayMetrics.widthPixels - dp(32)).coerceAtLeast(1),
+        WindowManager.LayoutParams.WRAP_CONTENT,
+        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+        PixelFormat.TRANSLUCENT,
+    ).apply {
+        gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        y = dp(48)
+        softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+    }
+
+    private fun displayPanel() {
+        check(Settings.canDrawOverlays(this))
+        val root = checkNotNull(host)
+        val view = OverlayPanel(this, session.replies) {
+            try { lifecycle.collapse() }
+            catch (_: RuntimeException) { fail("Panel unavailable. Continue in the Activity.") }
+        }
+        panel = view
+        root.removeAllViews()
+        root.addView(view)
+        windows.updateViewLayout(root, panelParams())
+        panelCollector = scope.launch { session.replies.state.collect { view.render(it) } }
+    }
+
+    private fun displayBubble() {
+        val root = checkNotNull(host)
+        panelCollector?.cancel()
+        panelCollector = null
+        hideKeyboard(root)
+        panel = null
+        root.removeAllViews()
+        root.addView(bubble())
+        windows.updateViewLayout(root, bubbleParams())
+    }
+
+    /** Both existing APIs are main-thread operations; cancel invalidates pending results first. */
+    private fun clearReplySession() {
+        clearOverlayReplySession(session.replies)
+    }
+
+    private fun hideKeyboard(view: View) {
+        try {
+            getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(view.windowToken, 0)
+            view.clearFocus()
+        } catch (_: RuntimeException) { /* Input window may already be gone. */ }
+    }
+
     private fun fail(message: String) {
         session.overlayStatus.value = OverlayStatus(error = message)
+        closeOverlay()
+    }
+
+    private fun closeOverlay() {
+        lifecycle.close()
         stopSelf()
     }
 
-    override fun onDestroy() {
-        scope.cancel()
-        panel?.let { view ->
-            try { windows.removeView(view) } catch (_: RuntimeException) { /* Already detached by Android. */ }
+    private fun releaseWindow() {
+        mainHandler.removeCallbacksAndMessages(null)
+        if (watchingPermission) {
+            watchingPermission = false
+            try { getSystemService(AppOpsManager::class.java).stopWatchingMode(permissionListener) }
+            catch (_: RuntimeException) { /* Android may already have removed the watcher. */ }
         }
+        scope.cancel()
+        panelCollector = null
         panel = null
-        session.replies.cancel()
+        val view = host
+        host = null
+        view?.let {
+            clearReplySession()
+            it.removeOnAttachStateChangeListener(attachmentListener)
+            hideKeyboard(it)
+            try { windows.removeViewImmediate(it) }
+            catch (_: RuntimeException) { /* Already detached, or addView failed. */ }
+        }
         session.overlayStatus.value = session.overlayStatus.value.copy(open = false)
         stopForeground(STOP_FOREGROUND_REMOVE)
+    }
+
+    override fun onDestroy() {
+        lifecycle.close()
         super.onDestroy()
     }
 
@@ -109,4 +226,76 @@ class OverlayService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val ACTION_CLOSE = "ph.merd.akma.CLOSE_OVERLAY"
     }
+}
+
+/** A non-null, actionless Intent is the existing Activity's explicit Open request. */
+internal fun isOverlayShowRequest(hasIntent: Boolean, action: String?): Boolean = hasIntent && action == null
+
+/** Main-thread ownership gate: a stopped service instance can never reopen its window. */
+internal class OverlaySession(
+    private val attach: () -> Unit,
+    private val release: () -> Unit,
+    private val displayPanel: () -> Unit = {},
+    private val displayBubble: () -> Unit = {},
+    private val clearPanel: () -> Unit = {},
+) {
+    var closed = false
+        private set
+    private var attached = false
+    var expanded = false
+        private set
+
+    fun show(permissionGranted: Boolean): Boolean {
+        if (closed) return false
+        if (!permissionGranted) {
+            close()
+            return false
+        }
+        if (!attached) {
+            try {
+                attach()
+                attached = true
+            } catch (exception: RuntimeException) {
+                close()
+                throw exception
+            }
+        }
+        return true
+    }
+
+    fun expand() {
+        if (closed || !attached || expanded) return
+        try {
+            displayPanel()
+            expanded = true
+        } catch (exception: RuntimeException) {
+            close()
+            throw exception
+        }
+    }
+
+    fun collapse() {
+        if (closed || !expanded) return
+        try {
+            clearPanel()
+            displayBubble()
+            expanded = false
+        } catch (exception: RuntimeException) {
+            close()
+            throw exception
+        }
+    }
+
+    fun close() {
+        if (closed) return
+        closed = true
+        expanded = false
+        release()
+    }
+}
+
+/** Clearing after cancellation also resets analysis/draft and preserves initialized readiness. */
+internal fun clearOverlayReplySession(replies: ReplyCoordinator) {
+    replies.cancel()
+    replies.setMessage("")
 }
