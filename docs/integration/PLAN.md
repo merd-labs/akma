@@ -1,6 +1,6 @@
 # Akma integration plan
 
-Status: planning implemented; production integration blocked. Owner: Miguel, Codex Primary. Baseline inspection: October 9, 2026 (PHT). This branch changes only this document.
+Status: planning implemented; production integration blocked. Owner: Miguel, Codex Primary. The baseline observations below describe `02df71a`; see the [live integration ledger](LEDGER.md) for current PR heads, checks, approval gates and domain/UI dependencies. This branch changes integration documents only.
 
 ## Verified baseline and authority
 
@@ -12,7 +12,7 @@ Status: planning implemented; production integration blocked. Owner: Miguel, Cod
 
 Read inputs: repository [AGENTS.md](../../AGENTS.md), [README](../../README.md), [start guide](../START_HERE.md), [PRD](../PRD.md), [contract](../CONTRACT.md), [decisions](../DECISIONS.md), [agent workflow](../AGENT_WORKFLOW.md), brand/provenance and publishing guidance; delivered Phase 2 v3 README, COMMON_GITOPS_RULES, RUNBOOK_WORKTREES, SPEC_RECONCILIATION and primary bootstrap/integration prompts; actual Kotlin sources and Git history. The intake package is local review input, not a merged product specification.
 
-The latest task requests application ID `ph.merd.akmaai`. Source and baseline APK still use `ph.merd.akma`. Miguel must coordinate that migration separately; this plan does not change namespace, packages, manifest, Gradle or existing requirements.
+The current owner instruction preserves application ID `ph.merd.akma` and product Akma, matching source and the baseline APK. The older intake package's `ph.merd.akmaai` proposal is superseded. No namespace/package/configuration migration is planned by this integration task.
 
 Hard submission: October 10, 10:00 AM PHT. Internal target: 9:00 AM. Official build window starts October 9, 2:30 PM (19.5 hours). Prioritize one real offline reply over tooling or refinements.
 
@@ -116,6 +116,6 @@ After approved production integration:
 
 ## Delivery and stop condition
 
-Commit and push only `docs/integration/PLAN.md` on `feat/integration-glue`. Open a non-duplicate draft PR against the verified remote bootstrap branch while main lacks Android. Request human review from verified collaborator `jairuss0`; Miguel reviews coordination decisions. Do not merge, force-push, delete worktrees/branches, alter visibility or stage the unrelated intake package.
+Commit and push only assigned integration documents on `feat/integration-glue`. Update the existing non-duplicate draft PR against the verified remote bootstrap branch while main lacks Android. Miguel and the team handle review and merge approval; this coordinator does not request or assign reviewers. Do not merge without explicit team approval, force-push, delete worktrees/branches, alter visibility or stage the unrelated intake package.
 
 Stop after the planning PR and blocked issue handoff. Elijah supplies runtime/device evidence, Danielle supplies stable UI, Rhence proposes reviewed product decisions, and Miguel assigns exact integration files before any production code resumes.
