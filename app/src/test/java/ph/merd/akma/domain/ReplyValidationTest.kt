@@ -30,14 +30,14 @@ class ReplyValidationTest {
     }
 
     @Test
-    fun acceptsFourReviewedActions() {
-        val actions = (1..4).map { SuggestedAction("action-$it", "Action $it") }
+    fun acceptsThreeCatalogActions() {
+        val actions = listOf("accept", "reschedule", "clarify").map { ActionCatalog.action(it)!! }
         assertTrue(ReplyValidation.validate(analysis(actions), actions.map { it.id }.toSet()).isSuccess)
     }
 
     @Test
-    fun rejectsMoreThanFourActions() {
-        val actions = (1..5).map { SuggestedAction("action-$it", "Action $it") }
+    fun rejectsFourReviewedActions() {
+        val actions = ActionCatalog.actionsFor("interview_invitation")
         assertTrue(ReplyValidation.validate(analysis(actions), actions.map { it.id }.toSet()).isFailure)
     }
 
@@ -79,10 +79,10 @@ class ReplyValidationTest {
     fun rejectsEmptyOrIncompleteAnalysis() {
         assertTrue(ReplyValidation.validate(analysis(emptyList()), setOf(action.id)).isFailure)
         assertTrue(ReplyValidation.validate(analysis(listOf(action)).copy(summary = ""), setOf(action.id)).isFailure)
-        assertTrue(ReplyValidation.validate(analysis(listOf(action.copy(label = ""))), setOf(action.id)).isFailure)
+        assertTrue(ReplyValidation.validate(analysis(listOf(action.copy(label = ""))), setOf(action.id)).isSuccess) // Labels come from the catalog.
     }
 
     private fun draftRequest() = DraftRequest(AnalyzeRequest("Are you free Friday at 10?"), action.id, ReplyTone.PROFESSIONAL)
 
-    private fun analysis(actions: List<SuggestedAction>) = AnalysisResult("invitation", "Synthetic test", true, actions)
+    private fun analysis(actions: List<SuggestedAction>) = AnalysisResult("invitation", "Synthetic test", true, actions, AnalysisSource.DETERMINISTIC)
 }

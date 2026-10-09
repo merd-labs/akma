@@ -1,6 +1,6 @@
 # Akma — MERD / AppBuildersPH Hackathon 2026
 
-**Status:** Android baseline with a Compose Activity, user-started Views overlay panel, unchanged domain contract, reply coordinator and validation tests. Explicit paste and manual copy paths are implemented, but phone behavior is unverified. The engine reports **Model unavailable** and produces no AI drafts. See [bootstrap verification](docs/BOOTSTRAP_VERIFICATION.md) for actual evidence; real local inference remains planned.
+**Status:** Android baseline with a Compose Activity, user-started Views overlay panel, a local action catalog, a second-confirmation domain gate, reply coordinator and validation tests. UI confirmation controls still require separate integration; current action clicks stop safely at confirmation. Explicit paste and manual copy paths are implemented, but phone behavior is unverified. The engine reports **Model unavailable** and produces no AI drafts. See [bootstrap verification](docs/BOOTSTRAP_VERIFICATION.md) for actual evidence; real local inference remains planned.
 
 **Pova 2 baseline:** Android 11/API 30, physical **6 GB RAM / 128 GB storage capacity** (MERD-reported). Free capacity and current available RAM remain to be measured with ADB. Do not claim 4GB compatibility.
 
