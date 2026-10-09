@@ -1,0 +1,11 @@
+timestamp_utc	device_alias	phase	metric	value	unit	status
+2026-10-09T15:44:55Z	pova2	baseline-after	android_api	30	api	ok
+2026-10-09T15:44:55Z	pova2	baseline-after	android_release	11	version	ok
+2026-10-09T15:44:55Z	pova2	baseline-after	abi	arm64-v8a	name	ok
+2026-10-09T15:44:55Z	pova2	baseline-after	model	TECNO LE7	name	ok
+2026-10-09T15:44:55Z	pova2	baseline-after	mem_total	5905908	KiB	ok
+2026-10-09T15:44:55Z	pova2	baseline-after	mem_available	2063300	KiB	ok
+2026-10-09T15:44:55Z	pova2	baseline-after	data_available	8134776	KiB	ok
+2026-10-09T15:44:55Z	pova2	baseline-after	battery_temperature	271	deciC	ok
+2026-10-09T15:44:55Z	pova2	baseline-after	thermal_status	0	android_status	ok
+2026-10-09T15:44:55Z	pova2	baseline-after	app_total_pss	69763	KiB	ok
