@@ -1,17 +1,23 @@
-# Disclosure record — complete before submission
+# AI Disclosure Record — Complete Before Submission
 
-This template is intentionally NOT a claim that a tool/model was used.
+**CURRENT STATUS: NO AI TOOLS HAVE BEEN USED TO GENERATE SUBMITTED APP CODE YET. NO LOCAL INFERENCE MODEL IS VERIFIED.**
+
+This template is intentionally NOT a claim that a tool/model was used. It must be updated with verifiable facts before the final submission.
 
 | Item | Actual name/version/model | Human operator/usage | Status |
 |---|---|---|---|
 | Codex CLI | TBD | Miguel / Elijah | To confirm |
 | Claude Code | TBD | Miguel / Danielle | To confirm |
-| Google AI agent(s) | TBD | Miguel / Rhence / Danielle | To confirm |
+| Google AI agent(s) | Gemini 3.1 Pro (High) / Antigravity | Miguel (Docs only) | **OBSERVED** (Docs) |
 | Spec Kit | TBD | Specification/task planning | To confirm |
 | Matt Pocock Skills | TBD | Agent workflow | To confirm |
 | LiteRT-LM or llama.cpp | TBD | On-device inference | **NOT VERIFIED** |
 | Model artifact, source, revision, license | TBD | Local model | **NOT VERIFIED** |
-| Kotlin/AGP/Android SDK versions | TBD | Android build | To confirm |
+| Kotlin/AGP/Android SDK versions | MinSDK 30 / TBD | Android build | **DEFERRED** |
 | Existing open source assets/libraries | TBD | List provenance/licenses | To confirm |
 
-Submission README must name exact technologies **actually used**, distinguish model executed on the phone from any Internet-required model download, and disclose any reused existing resources. No fake benchmarks or unverified output claims.
+## Requirements for Final Submission
+- The README must name the exact technologies **actually used**.
+- Must explicitly distinguish the local model executed on the phone from any Internet-required model download.
+- Must disclose any reused existing resources, including their licenses.
+- No fake benchmarks or unverified output claims are permitted.
