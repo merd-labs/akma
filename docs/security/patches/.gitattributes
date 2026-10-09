@@ -1,0 +1,3 @@
+# Patch files contain context lines copied from the target sources, including blank context lines (a single space)
+# and any trailing whitespace those sources already have. Do not whitespace-check them as if they were prose.
+*.patch -whitespace
