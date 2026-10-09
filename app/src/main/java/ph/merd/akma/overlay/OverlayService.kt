@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.res.Configuration
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
@@ -179,8 +180,8 @@ class OverlayService : Service() {
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
     private fun bubbleBounds(): BubbleBounds {
-        val metrics = windows.currentWindowMetrics
-        val bars = metrics.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars())
+        val metrics = windows.maximumWindowMetrics
+        val bars = metrics.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
         return BubbleBounds(metrics.bounds.width(), metrics.bounds.height(), dp(72), dp(4), bars.top, bars.bottom)
     }
 
@@ -275,6 +276,28 @@ class OverlayService : Service() {
         // Figma "Akma panel": a bottom sheet over the chat app.
         gravity = Gravity.BOTTOM
         softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        mainHandler.post {
+            if (lifecycle.closed) return@post
+            val root = host ?: return@post
+            try {
+                bubbleAnimator?.cancel()
+                val bounds = bubbleBounds()
+                bubblePoint = bounds.snap(bubblePoint ?: bounds.initial(dp(156)))
+                if (panel == null) windows.updateViewLayout(root, bubbleParams())
+                else {
+                    val metrics = windows.maximumWindowMetrics
+                    val safe = metrics.windowInsets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout() or WindowInsets.Type.ime())
+                    panelMaxHeight = overlayPanelMaxHeight(metrics.bounds.height(), safe.top, safe.bottom)
+                    root.requestApplyInsets()
+                }
+            } catch (_: RuntimeException) {
+                fail("Overlay could not adapt to the display. Continue in the Activity.")
+            }
+        }
     }
 
     private fun displayPanel() {
