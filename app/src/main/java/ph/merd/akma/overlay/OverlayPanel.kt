@@ -29,6 +29,7 @@ import ph.merd.akma.ui.selectDraft
 import ph.merd.akma.ui.confirmDisplayedDraft
 import ph.merd.akma.ui.cancelDisplayedDraft
 import ph.merd.akma.ui.confirmationButton
+import ph.merd.akma.ui.copyButton
 import ph.merd.akma.ui.canRetryLocalModel
 import ph.merd.akma.ui.retryLocalModel
 import ph.merd.akma.ui.cancelDisplayedProcessing
@@ -78,14 +79,11 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
     }
     private val draft = input("Editable draft", replies::editDraft)
     private val review = label("Review before copying. Paste and send manually.")
-    private val copy = button("Copy draft") {
-        if (copyDraft(context, replies.state.value)) replies.copied()
-        else notice.text = "Copy failed. Select the draft and copy manually."
-    }.apply {
-        // Consequential control: ignore taps delivered while another app's window covers the tap point (tapjacking).
-        // Apply the same to the future Confirm button. Not applied panel-wide on purpose: full-screen dimmer/filter
-        // overlays would then block every control.
-        filterTouchesWhenObscured = true
+    private val copy = copyButton(context).apply {
+        setOnClickListener {
+            if (copyDraft(context, replies.state.value)) replies.copied()
+            else notice.text = "Copy failed. Select the draft and copy manually."
+        }
     }
     private var rendering = false
     private var actionKey: Any? = null
