@@ -19,15 +19,22 @@ enum class ReplyPhase {
     ModelUnavailable, ModelLoading, Ready, Analyzing, ChoosingAction, Drafting, Editing, Copied, Error,
 }
 
+data class DraftConfirmation(
+    val id: Long,
+    val action: SuggestedAction,
+    val request: DraftRequest,
+)
+
 data class ReplyState(
     val phase: ReplyPhase = ReplyPhase.ModelUnavailable,
     val message: String = "",
     val analysis: AnalysisResult? = null,
     val draft: String = "",
     val notice: String? = null,
+    val pendingConfirmation: DraftConfirmation? = null,
 ) {
     val busy: Boolean get() = phase in setOf(ReplyPhase.ModelLoading, ReplyPhase.Analyzing, ReplyPhase.Drafting)
-    val canCopy: Boolean get() = phase in setOf(ReplyPhase.Editing, ReplyPhase.Copied) && draft.isNotBlank()
+    val canCopy: Boolean get() = pendingConfirmation == null && phase in setOf(ReplyPhase.Editing, ReplyPhase.Copied) && draft.isNotBlank()
 }
 
 /** Call UI methods on the main thread. One process owns one coordinator and one engine. */
@@ -36,14 +43,16 @@ class ReplyCoordinator(
     private val scope: CoroutineScope,
     private val worker: CoroutineDispatcher = Dispatchers.IO,
     private val timeoutMillis: Long = 60_000,
-    private val allowedActionIds: Set<String> = setOf("reschedule", "acknowledge", "clarify", "accept", "decline"),
+    allowedActionIds: Set<String> = ActionCatalog.actionIds,
 ) {
+    private val allowedActionIds = allowedActionIds.toSet()
     private val mutableState = MutableStateFlow(ReplyState())
     val state = mutableState.asStateFlow()
     private val engineMutex = Mutex()
     private var operation: Job? = null
     private var generation = 0L
     private var initialized = false
+    private var confirmationId = 0L
     private var recoveryPhase = ReplyPhase.ModelUnavailable
 
     fun setMessage(message: String) {
@@ -69,16 +78,44 @@ class ReplyCoordinator(
         val request = AnalyzeRequest(state.value.message)
         if (!validate(ReplyValidation.validate(request))) return
         process(ReplyPhase.Analyzing) {
-            val analysis = engine.analyze(request).getOrThrow()
-            ReplyValidation.validate(analysis, allowedActionIds).getOrThrow()
+            val analysis = ReplyValidation.normalize(engine.analyze(request).getOrThrow(), allowedActionIds).getOrThrow()
             state.value.copy(phase = ReplyPhase.ChoosingAction, analysis = analysis, draft = "", notice = null)
         }
     }
 
+    /** An action tap requests confirmation. It never starts inference on its own. */
     fun draft(actionId: String, tone: ReplyTone) {
         if (!initialized || state.value.phase !in setOf(ReplyPhase.ChoosingAction, ReplyPhase.Editing, ReplyPhase.Copied)) return
         val request = DraftRequest(AnalyzeRequest(state.value.message), actionId, tone)
-        if (!validate(ReplyValidation.validate(request, state.value.analysis!!.actions))) return
+        val analysis = state.value.analysis ?: return
+        if (!validate(ReplyValidation.validate(request, analysis.actions))) return
+        if (state.value.pendingConfirmation?.request == request) return
+        val action = analysis.actions.single { it.id == actionId }
+        mutableState.value = state.value.copy(
+            phase = ReplyPhase.ChoosingAction,
+            draft = "",
+            pendingConfirmation = DraftConfirmation(++confirmationId, action, request),
+            notice = "Confirm your selected action before drafting.",
+        )
+    }
+
+    /** Invoke only from a separate human Confirm control, using the ID the control displayed. */
+    fun confirmDraft(confirmationId: Long) {
+        if (state.value.busy) return
+        val pending = state.value.pendingConfirmation
+        if (!initialized || state.value.phase != ReplyPhase.ChoosingAction || pending == null || pending.id != confirmationId) {
+            mutableState.value = state.value.copy(notice = "Confirmation is no longer available. Select an action again.")
+            return
+        }
+        val analysis = state.value.analysis ?: return
+        if (!validate(ReplyValidation.validate(pending.request, analysis.actions))) return
+        if (pending.request.original != AnalyzeRequest(state.value.message)) {
+            mutableState.value = state.value.copy(pendingConfirmation = null, notice = "Message changed. Select an action again.")
+            return
+        }
+        val request = pending.request
+        // Consume before scheduling. A duplicate confirmation cannot reuse this request.
+        mutableState.value = state.value.copy(pendingConfirmation = null)
         process(ReplyPhase.Drafting) {
             val draft = engine.draft(request).getOrThrow()
             ReplyValidation.validateDraft(draft).getOrThrow()
@@ -100,6 +137,10 @@ class ReplyCoordinator(
     }
 
     fun cancel() {
+        if (state.value.pendingConfirmation != null) {
+            mutableState.value = state.value.copy(pendingConfirmation = null, notice = "Cancelled.")
+            return
+        }
         if (!state.value.busy) return
         generation++
         operation?.cancel()
@@ -118,7 +159,7 @@ class ReplyCoordinator(
     private fun validate(result: Result<Unit>): Boolean {
         if (result.isSuccess) return true
         if (state.value.phase != ReplyPhase.Error) recoveryPhase = state.value.phase
-        mutableState.value = state.value.copy(phase = ReplyPhase.Error, notice = result.exceptionOrNull()?.message)
+        mutableState.value = state.value.copy(phase = ReplyPhase.Error, pendingConfirmation = null, notice = result.exceptionOrNull()?.message)
         return false
     }
 
@@ -126,7 +167,7 @@ class ReplyCoordinator(
         if (state.value.busy) return
         if (state.value.phase != ReplyPhase.Error) recoveryPhase = state.value.phase
         val currentGeneration = ++generation
-        mutableState.value = state.value.copy(phase = phase, notice = null)
+        mutableState.value = state.value.copy(phase = phase, pendingConfirmation = null, notice = null)
         operation = scope.launch(start = CoroutineStart.LAZY) {
             try {
                 val result = withTimeout(timeoutMillis) {

@@ -1,6 +1,6 @@
 # Start here — decisions and status
 
-This is the **Android baseline**, with a Compose Activity, user-started Views overlay panel, shared validation and reply coordinator. Paste/copy and permission recovery are implemented but unverified on a phone. The production engine always reports model unavailable; local inference remains planned. See `docs/BOOTSTRAP_VERIFICATION.md` for actual checks and `docs/reference/elijah/` for original unedited planning drafts. Active documents supersede those drafts for execution.
+This is the **Android baseline**, with a Compose Activity, user-started Views overlay panel, shared validation, local action catalog and reply coordinator. Every draft requires separate human confirmation. The domain gate is implemented; Activity/overlay Confirm/Cancel controls remain a separate integration dependency. Paste/copy and permission recovery are implemented but unverified on a phone. The production engine always reports model unavailable; local inference remains planned. See `docs/BOOTSTRAP_VERIFICATION.md` for actual checks and `docs/reference/elijah/` for original unedited planning drafts. Active documents supersede those drafts for execution.
 
 **Official product name:** Akma. **Repo:** `merd-labs/akma` (verified public). **Android ID/namespace:** `ph.merd.akma`. Original drafts retain historical identity intentionally; see `docs/BRAND_AND_PROVENANCE.md`.
 
