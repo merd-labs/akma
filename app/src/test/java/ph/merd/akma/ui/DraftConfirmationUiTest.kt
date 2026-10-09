@@ -17,9 +17,17 @@ import ph.merd.akma.overlay.clearOverlayReplySession
 class DraftConfirmationUiTest {
     private val message = "Synthetic invitation: please ask for details before committing."
 
-    private class Engine(private val finish: CompletableDeferred<String>? = null) : LocalReplyEngine {
+    private class Engine(
+        private val finish: CompletableDeferred<String>? = null,
+        private val initializeFinish: CompletableDeferred<Unit>? = null,
+    ) : LocalReplyEngine {
         val requests = mutableListOf<DraftRequest>()
-        override suspend fun initialize() = Result.success(Unit)
+        var initializationCalls = 0
+        override suspend fun initialize(): Result<Unit> {
+            initializationCalls++
+            initializeFinish?.let { withContext(NonCancellable) { it.await() } }
+            return Result.success(Unit)
+        }
         override suspend fun analyze(request: AnalyzeRequest) = Result.success(AnalysisResult(
             "interview_invitation", "Synthetic analysis", false,
             listOf(SuggestedAction("accept", "Decline"), SuggestedAction("reschedule", "Accept")),
@@ -107,7 +115,7 @@ class DraftConfirmationUiTest {
         assertEquals(listOf(replacement.request), engine.requests)
     }
 
-    @Test fun cancelBeforeConfirmPreventsGenerationAndUnlocksSelection() = runTest {
+    @Test fun cancelBeforeConfirmClearsSessionAndPreventsGeneration() = runTest {
         val engine = Engine()
         val replies = ready(engine)
         replies.selectDraft("accept", ReplyTone.FRIENDLY)
@@ -116,8 +124,8 @@ class DraftConfirmationUiTest {
         replies.confirmDisplayedDraft(id)
         runCurrent()
         assertTrue(engine.requests.isEmpty())
-        assertNull(replies.state.value.pendingConfirmation)
-        assertTrue(replies.state.value.canChooseDraft)
+        assertEquals(ReplyState(phase = ReplyPhase.Ready), replies.state.value)
+        assertFalse(replies.state.value.canChooseDraft)
     }
 
     @Test fun staleCancelCannotDismissAnotherSurfacesNewSelection() = runTest {
@@ -126,10 +134,113 @@ class DraftConfirmationUiTest {
         replies.selectDraft("accept", ReplyTone.FRIENDLY)
         val oldId = requireNotNull(replies.state.value.displayedConfirmation()).id
         replies.cancelDisplayedDraft(oldId)
+        replies.setMessage("Second synthetic message")
+        replies.analyze()
+        runCurrent()
         replies.selectDraft("reschedule", ReplyTone.CONCISE)
         val replacement = requireNotNull(replies.state.value.displayedConfirmation())
         replies.cancelDisplayedDraft(oldId)
         assertEquals(replacement, replies.state.value.pendingConfirmation)
+        assertEquals("Second synthetic message", replies.state.value.message)
+    }
+
+    @Test fun cancelProcessingClearsSessionAndDropsNonCooperativeLateOutput() = runTest {
+        val finish = CompletableDeferred<String>()
+        val engine = Engine(finish)
+        val replies = ready(engine)
+        replies.selectDraft("accept", ReplyTone.FRIENDLY)
+        val id = requireNotNull(replies.state.value.displayedConfirmation()).id
+        replies.confirmDisplayedDraft(id)
+        runCurrent()
+        val displayed = replies.state.value
+        replies.cancelDisplayedProcessing(displayed)
+        assertEquals(ReplyState(phase = ReplyPhase.Ready), replies.state.value)
+        finish.complete("Synthetic cancelled draft must not reappear")
+        runCurrent()
+        replies.cancelDisplayedProcessing(displayed)
+        replies.confirmDisplayedDraft(id)
+        assertEquals(ReplyState(phase = ReplyPhase.Ready), replies.state.value)
+        assertEquals(1, engine.requests.size)
+    }
+
+    @Test fun staleProcessingCancelCannotClearAnotherSessionsContent() = runTest {
+        val finish = CompletableDeferred<String>()
+        val replies = ready(Engine(finish))
+        replies.selectDraft("accept", ReplyTone.FRIENDLY)
+        replies.confirmDisplayedDraft(requireNotNull(replies.state.value.displayedConfirmation()).id)
+        runCurrent()
+        val oldDisplayed = replies.state.value
+        replies.cancelDisplayedProcessing(oldDisplayed)
+        replies.setMessage("Second synthetic message")
+        replies.analyze()
+        val nextDisplayed = replies.state.value
+        assertTrue(nextDisplayed.busy)
+        replies.cancelDisplayedProcessing(oldDisplayed)
+        assertSame(nextDisplayed, replies.state.value)
+        replies.cancelDisplayedProcessing(nextDisplayed)
+        finish.complete("Synthetic old native output")
+        runCurrent()
+        assertEquals(ReplyState(phase = ReplyPhase.Ready), replies.state.value)
+    }
+
+    @Test fun retryOnlyRunsWhenUnavailableOrErrorAndNeverWhileBusyOrPending() = runTest {
+        val finish = CompletableDeferred<String>()
+        val engine = Engine(finish)
+        val replies = ready(engine)
+        ReplyPhase.entries.forEach { phase ->
+            assertEquals(phase in setOf(ReplyPhase.ModelUnavailable, ReplyPhase.Error),
+                ReplyState(phase = phase).canRetryLocalModel)
+        }
+        replies.retryLocalModel()
+        replies.selectDraft("accept", ReplyTone.FRIENDLY)
+        assertFalse(replies.state.value.canRetryLocalModel)
+        replies.retryLocalModel()
+        replies.confirmDisplayedDraft(requireNotNull(replies.state.value.displayedConfirmation()).id)
+        replies.retryLocalModel()
+        runCurrent()
+        assertEquals(1, engine.initializationCalls)
+        finish.completeExceptionally(IllegalStateException("Synthetic private prompt must never display"))
+        runCurrent()
+        assertEquals(ReplyPhase.Error, replies.state.value.phase)
+        assertEquals("Local processing failed. Check the model and retry.", replies.state.value.notice)
+        assertFalse(replies.state.value.statusText().contains("Synthetic private prompt"))
+        replies.retryLocalModel()
+        runCurrent()
+        assertEquals(2, engine.initializationCalls)
+        assertEquals(ReplyPhase.Ready, replies.state.value.phase)
+    }
+
+    @Test fun cancelledInitializationCannotRestoreReadyOrSensitiveContent() = runTest {
+        val finish = CompletableDeferred<Unit>()
+        val engine = Engine(initializeFinish = finish)
+        val replies = ReplyCoordinator(engine, backgroundScope, StandardTestDispatcher(testScheduler))
+        replies.setMessage(message)
+        replies.retryLocalModel()
+        runCurrent()
+        assertEquals(ReplyPhase.ModelLoading, replies.state.value.phase)
+        assertEquals("Loading local model…", replies.state.value.statusText())
+        replies.retryLocalModel()
+        replies.cancelDisplayedProcessing(replies.state.value)
+        assertEquals(ReplyState(), replies.state.value)
+        finish.complete(Unit)
+        runCurrent()
+        assertEquals(ReplyState(), replies.state.value)
+        assertEquals(1, engine.initializationCalls)
+    }
+
+    @Test fun recreatedBusyBindingMustUseLiveSnapshotToCancel() = runTest {
+        val finish = CompletableDeferred<String>()
+        val replies = ready(Engine(finish))
+        replies.selectDraft("accept", ReplyTone.FRIENDLY)
+        replies.confirmDisplayedDraft(requireNotNull(replies.state.value.displayedConfirmation()).id)
+        runCurrent()
+        val live = replies.state.value
+        replies.cancelDisplayedProcessing(live.copy())
+        assertSame(live, replies.state.value)
+        replies.cancelDisplayedProcessing(live)
+        finish.complete("Synthetic late result")
+        runCurrent()
+        assertEquals(ReplyState(phase = ReplyPhase.Ready), replies.state.value)
     }
 
     @Test fun pendingSelectionCannotBeChangedByRacingActionOrToneClicks() = runTest {

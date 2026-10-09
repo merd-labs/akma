@@ -29,6 +29,9 @@ import ph.merd.akma.ui.selectDraft
 import ph.merd.akma.ui.confirmDisplayedDraft
 import ph.merd.akma.ui.cancelDisplayedDraft
 import ph.merd.akma.ui.confirmationButton
+import ph.merd.akma.ui.canRetryLocalModel
+import ph.merd.akma.ui.retryLocalModel
+import ph.merd.akma.ui.cancelDisplayedProcessing
 
 /** Views keep overlay lifecycle independent from Compose. Input is never saved or autofilled. */
 class OverlayPanel(context: Context, private val replies: ReplyCoordinator, close: () -> Unit) : LinearLayout(context) {
@@ -40,8 +43,8 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
     private val status = label("")
     private val notice = label("")
     private val progress = ProgressBar(context)
-    private val cancel = button("Cancel") { if (replies.state.value.busy) replies.cancel() }
-    private val check = button("Check local model") { if (replies.state.value.canStartProcessing) replies.initialize() }
+    private val cancel = button("Cancel and clear session") {}
+    private val check = button("Retry local model", replies::retryLocalModel)
     private val recover = button("Dismiss error and retry", replies::recover)
     private val message = input("Message — tap Paste message", replies::setMessage)
     private val paste = button("Paste message") {
@@ -108,7 +111,11 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
             notice.text = state.notice.orEmpty()
             progress.visibility = if (state.busy) VISIBLE else GONE
             cancel.visibility = if (state.busy) VISIBLE else GONE
-            check.isEnabled = state.canStartProcessing
+            cancel.cancelPendingInputEvents()
+            cancel.isPressed = false
+            cancel.setOnClickListener { replies.cancelDisplayedProcessing(state) }
+            check.isEnabled = state.canRetryLocalModel
+            check.visibility = if (state.canRetryLocalModel) VISIBLE else GONE
             recover.visibility = if (state.phase == ReplyPhase.Error) VISIBLE else GONE
             message.isEnabled = !state.busy
             paste.isEnabled = !state.busy
@@ -155,12 +162,12 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
                         confirmationArea.addView(label(confirmation.request.userInstruction))
                     }
                 } else confirmationArea.addView(label("Selection no longer valid. Cancel and choose again."))
-                confirmationArea.addView(label("Generating a draft does not send or accept anything. Cancel to change action or tone."))
+                confirmationArea.addView(label("Generating a draft does not send or accept anything. Cancel clears this session."))
                 confirmationArea.addView(confirmationButton(context).apply {
                     isEnabled = confirmation != null
                     setOnClickListener { replies.confirmDisplayedDraft(displayed.id) }
                 })
-                confirmationArea.addView(button("Cancel selection") { replies.cancelDisplayedDraft(displayed.id) })
+                confirmationArea.addView(button("Cancel and clear session") { replies.cancelDisplayedDraft(displayed.id) })
             }
             val editing = state.phase in setOf(ReplyPhase.Editing, ReplyPhase.Copied)
             review.visibility = if (editing) VISIBLE else GONE

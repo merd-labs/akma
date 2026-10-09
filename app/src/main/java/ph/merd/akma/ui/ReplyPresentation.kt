@@ -12,6 +12,7 @@ import ph.merd.akma.domain.ReplyCoordinator
 import ph.merd.akma.domain.ReplyPhase
 import ph.merd.akma.domain.ReplyState
 import ph.merd.akma.domain.ReplyTone
+import ph.merd.akma.overlay.clearOverlayReplySession
 
 internal val ReplyState.canStartProcessing: Boolean
     get() = !busy && pendingConfirmation == null
@@ -19,6 +20,13 @@ internal val ReplyState.canStartProcessing: Boolean
 internal val ReplyState.canChooseDraft: Boolean
     get() = canStartProcessing && analysis != null &&
         phase in setOf(ReplyPhase.ChoosingAction, ReplyPhase.Editing, ReplyPhase.Copied)
+
+internal val ReplyState.canRetryLocalModel: Boolean
+    get() = canStartProcessing && phase in setOf(ReplyPhase.ModelUnavailable, ReplyPhase.Error)
+
+internal fun ReplyCoordinator.retryLocalModel() {
+    if (state.value.canRetryLocalModel) initialize()
+}
 
 /** Recreated surfaces read the immutable request; local tone widgets never redefine it. */
 internal fun ReplyState.displayedConfirmation(): DraftConfirmation? {
@@ -47,7 +55,13 @@ internal fun ReplyCoordinator.confirmDisplayedDraft(displayedId: Long) {
 internal fun ReplyCoordinator.cancelDisplayedDraft(displayedId: Long) {
     val current = state.value
     if (current.busy || current.phase != ReplyPhase.ChoosingAction || current.pendingConfirmation?.id != displayedId) return
-    cancel()
+    clearOverlayReplySession(this)
+}
+
+/** Cancel invalidates native work before clearing sensitive content on both surfaces. */
+internal fun ReplyCoordinator.cancelDisplayedProcessing(displayed: ReplyState) {
+    if (!displayed.busy || state.value !== displayed) return
+    clearOverlayReplySession(this)
 }
 
 internal fun isObscuredTouch(flags: Int): Boolean =

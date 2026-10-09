@@ -48,6 +48,9 @@ import ph.merd.akma.ui.selectDraft
 import ph.merd.akma.ui.confirmDisplayedDraft
 import ph.merd.akma.ui.cancelDisplayedDraft
 import ph.merd.akma.ui.confirmationButton
+import ph.merd.akma.ui.canRetryLocalModel
+import ph.merd.akma.ui.retryLocalModel
+import ph.merd.akma.ui.cancelDisplayedProcessing
 
 class MainActivity : ComponentActivity() {
     private val session get() = application as AkmaApplication
@@ -93,11 +96,13 @@ class MainActivity : ComponentActivity() {
                         state.notice?.let { Text(it) }
                         if (state.busy) {
                             LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Button(onClick = { if (session.replies.state.value.busy) session.replies.cancel() }) { Text("Cancel") }
+                            key(state) {
+                                Button(onClick = { session.replies.cancelDisplayedProcessing(state) }) { Text("Cancel and clear session") }
+                            }
                         }
-                        Button(onClick = {
-                            if (session.replies.state.value.canStartProcessing) session.replies.initialize()
-                        }, enabled = state.canStartProcessing) { Text("Check local model") }
+                        if (state.canRetryLocalModel) {
+                            Button(onClick = { session.replies.retryLocalModel() }) { Text("Retry local model") }
+                        }
                         if (state.phase == ReplyPhase.Error) {
                             Button(onClick = session.replies::recover) { Text("Dismiss error and retry") }
                         }
@@ -155,7 +160,7 @@ class MainActivity : ComponentActivity() {
                                         Text(confirmation.request.userInstruction)
                                     }
                                 } else Text("Selection no longer valid. Cancel and choose again.")
-                                Text("Generating a draft does not send or accept anything. Cancel to change action or tone.")
+                                Text("Generating a draft does not send or accept anything. Cancel clears this session.")
                                 AndroidView(
                                     factory = { context -> confirmationButton(context) },
                                     update = { button ->
@@ -164,7 +169,7 @@ class MainActivity : ComponentActivity() {
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                 )
-                                Button(onClick = { session.replies.cancelDisplayedDraft(displayed.id) }) { Text("Cancel selection") }
+                                Button(onClick = { session.replies.cancelDisplayedDraft(displayed.id) }) { Text("Cancel and clear session") }
                             }
                         }
                         if (state.phase in setOf(ReplyPhase.Editing, ReplyPhase.Copied)) {
