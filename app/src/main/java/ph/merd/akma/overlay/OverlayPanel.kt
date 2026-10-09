@@ -5,6 +5,8 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
+import android.view.WindowInsets
+import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -28,15 +30,12 @@ import ph.merd.akma.ui.statusText
 import ph.merd.akma.ui.canStartProcessing
 import ph.merd.akma.ui.canChooseDraft
 import ph.merd.akma.ui.displayedConfirmation
-import ph.merd.akma.ui.selectDraft
-import ph.merd.akma.ui.confirmDisplayedDraft
-import ph.merd.akma.ui.cancelDisplayedDraft
 import ph.merd.akma.ui.confirmationButton
 import ph.merd.akma.ui.copyButton
 import ph.merd.akma.ui.canRetryLocalModel
-import ph.merd.akma.ui.retryLocalModel
-import ph.merd.akma.ui.cancelDisplayedProcessing
 import ph.merd.akma.ui.AkmaText
+import ph.merd.akma.ui.JourneyCallbacks
+import ph.merd.akma.ui.JourneyCoordinatorAdapter
 import ph.merd.akma.ui.akmaButton
 import ph.merd.akma.ui.akmaCard
 import ph.merd.akma.ui.akmaDp
@@ -49,6 +48,8 @@ import ph.merd.akma.ui.theme.AkmaTokens
 
 /** Views keep overlay lifecycle independent from Compose. Input is never saved or autofilled. */
 class OverlayPanel(context: Context, private val replies: ReplyCoordinator, close: () -> Unit) : LinearLayout(context) {
+    private var callbacks: JourneyCallbacks? = null
+    private var viewportMaxHeight: Int? = null
     private val content = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(0, 0, 0, context.akmaDp(16f))
@@ -69,33 +70,11 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
         akmaProgress()
     }
     private val cancel = button("Cancel and clear session", ButtonVariant.Secondary) {}
-    private val check = button("Retry local model", ButtonVariant.Primary, replies::retryLocalModel)
-    private val recover = button("Dismiss error and retry", ButtonVariant.Secondary, replies::recover)
-    private val message = input("Message — tap Paste message", replies::setMessage)
-    private val paste = button("Paste message", ButtonVariant.Secondary) {
-        // Service-hosted Views may have no floating selection toolbar. Use Android's native
-        // paste action, only after this user click and while our input window has focus.
-        if (!message.requestFocus() || !message.hasWindowFocus()) {
-            notice.text = "Tap the message field, then Paste message."
-        } else {
-            try {
-                // Focus alone does not display the IME when a button initiated Paste.
-                // This explicit user action requests normal IME display, never forced display.
-                message.post {
-                    if (message.isAttachedToWindow && message.hasWindowFocus()) {
-                        context.getSystemService(InputMethodManager::class.java)
-                            .showSoftInput(message, InputMethodManager.SHOW_IMPLICIT)
-                    }
-                }
-                if (!message.onTextContextMenuItem(android.R.id.paste)) {
-                    notice.text = "Paste unavailable. Copy text and retry, or use the Activity."
-                }
-            } catch (_: RuntimeException) {
-                notice.text = "Paste unavailable. Copy text and retry, or use the Activity."
-            }
-        }
-    }
-    private val analyze = button("Analyze locally", ButtonVariant.Primary) { if (replies.state.value.canStartProcessing) replies.analyze() }
+    private val check = button("Retry local model", ButtonVariant.Primary) { callbacks?.onRetry?.invoke() }
+    private val recover = button("Dismiss error and retry", ButtonVariant.Secondary) { callbacks?.onDismissError?.invoke() }
+    private val message = input("Message — tap Paste message") { callbacks?.onMessageChange?.invoke(it) }
+    private val paste = button("Paste message", ButtonVariant.Secondary) { callbacks?.onPaste?.invoke() }
+    private val analyze = button("Analyze locally", ButtonVariant.Primary) { callbacks?.onAnalyze?.invoke() }
     private val actions = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     private val confirmationArea = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
@@ -108,15 +87,16 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
         background = context.akmaCard(AkmaTokens.BG_SUBTLE, 16f)
         minimumHeight = context.akmaDp(48f)
     }
-    private val draft = input("Editable draft", replies::editDraft)
+    private val draft = input("Editable draft") { callbacks?.onDraftChange?.invoke(it) }
     private val review = label("Review before copying. Paste and send manually.").apply { akmaText(AkmaText.Body) }
-    private val copy = copyButton(context).apply {
+    private val copy = copyButton(context, ::blockedTap).apply {
         akmaButton(ButtonVariant.Primary, R.drawable.ic_akma_copy)
-        setOnClickListener {
-            if (copyDraft(context, replies.state.value)) replies.copied()
-            else notice.text = "Copy failed. Select the draft and copy manually."
-        }
+        setOnClickListener { callbacks?.onCopy?.invoke() }
     }
+    private val bridge = JourneyCoordinatorAdapter(
+        replies, ::pasteMessage, { displayed -> copyDraft(context, displayed) },
+        copyFailed = { notice.text = context.getString(R.string.akma_copy_failed) },
+    )
     private var rendering = false
     private var actionKey: Any? = null
 
@@ -140,26 +120,80 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val maxHeight = (resources.displayMetrics.heightPixels * 0.65).toInt()
+        val maxHeight = viewportMaxHeight ?: overlayPanelMaxHeight(
+            context.getSystemService(WindowManager::class.java).maximumWindowMetrics.bounds.height(), 0, 0,
+        )
         val limit = minOf(maxHeight, MeasureSpec.getSize(heightMeasureSpec).takeIf { it > 0 } ?: maxHeight)
         super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(limit, MeasureSpec.AT_MOST))
+    }
+
+    override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {
+        // Use the unresized display and the union of IME/system insets. WindowManager moves
+        // the bottom sheet above the IME; this only bounds its scroll body, with no extra offset.
+        val safe = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout() or WindowInsets.Type.ime())
+        val height = context.getSystemService(WindowManager::class.java).maximumWindowMetrics.bounds.height()
+        val limit = overlayPanelMaxHeight(height, safe.top, safe.bottom)
+        if (viewportMaxHeight != limit) { viewportMaxHeight = limit; requestLayout() }
+        return super.onApplyWindowInsets(insets)
+    }
+
+    private fun blockedTap() {
+        notice.text = "Tap blocked because another window covers this control. Move it away and try again."
+    }
+
+    private fun pasteMessage() {
+        // Android's native paste action runs only from an explicit tap in our focused window.
+        if (!message.requestFocus() || !message.hasWindowFocus()) {
+            notice.text = "Tap the message field, then Paste message."
+            return
+        }
+        try {
+            message.post {
+                if (message.isAttachedToWindow && message.hasWindowFocus() && message.isEnabled) {
+                    context.getSystemService(InputMethodManager::class.java)
+                        .showSoftInput(message, InputMethodManager.SHOW_IMPLICIT)
+                }
+            }
+            if (!message.onTextContextMenuItem(android.R.id.paste)) {
+                notice.text = "Paste unavailable. Copy text and retry, or use the Activity."
+            }
+        } catch (_: RuntimeException) {
+            notice.text = "Paste unavailable. Copy text and retry, or use the Activity."
+        }
     }
 
     fun render(state: ReplyState) {
         rendering = true
         try {
-            status.text = state.statusText()
-            notice.text = state.notice.orEmpty()
+            val displayedCallbacks = bridge.callbacks(state, ReplyTone.entries[tone.selectedItemPosition])
+            callbacks = displayedCallbacks
+            // A new render invalidates any gesture begun on controls for the previous state.
+            listOf(cancel, check, recover, paste, analyze, copy).forEach { button ->
+                button.cancelPendingInputEvents()
+                button.isPressed = false
+            }
+            check.setOnClickListener { displayedCallbacks.onRetry() }
+            recover.setOnClickListener { displayedCallbacks.onDismissError() }
+            paste.setOnClickListener { displayedCallbacks.onPaste() }
+            analyze.setOnClickListener { displayedCallbacks.onAnalyze() }
+            copy.setOnClickListener { displayedCallbacks.onCopy() }
+            status.text = if (state.phase == ReplyPhase.ModelUnavailable) context.getString(R.string.akma_no_model_title) else state.statusText()
+            notice.text = state.notice ?: when (state.phase) {
+                ReplyPhase.ModelLoading -> context.getString(R.string.akma_loading_model_body)
+                ReplyPhase.Analyzing -> context.getString(R.string.akma_reading_body)
+                ReplyPhase.Drafting -> context.getString(R.string.akma_writing_body)
+                else -> ""
+            }
             progress.visibility = if (state.busy) VISIBLE else GONE
             cancel.visibility = if (state.busy) VISIBLE else GONE
             cancel.cancelPendingInputEvents()
             cancel.isPressed = false
-            cancel.setOnClickListener { replies.cancelDisplayedProcessing(state) }
+            cancel.setOnClickListener { displayedCallbacks.onCancelProcessing() }
             check.isEnabled = state.canRetryLocalModel
             check.visibility = if (state.canRetryLocalModel) VISIBLE else GONE
             recover.visibility = if (state.phase == ReplyPhase.Error) VISIBLE else GONE
-            message.isEnabled = !state.busy
-            paste.isEnabled = !state.busy
+            message.isEnabled = state.canStartProcessing
+            paste.isEnabled = state.canStartProcessing
             syncText(message, state.message)
             analyze.isEnabled = state.canStartProcessing && state.phase != ReplyPhase.ModelUnavailable
             tone.visibility = if (state.analysis == null) GONE else VISIBLE
@@ -174,12 +208,19 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
                     actions.addView(label(analysis.summary))
                     analysis.actions.forEach { action ->
                         actions.addView(button(ActionCatalog.action(action.id)?.label ?: "Unavailable action") {
-                            replies.selectDraft(action.id, ReplyTone.entries[tone.selectedItemPosition])
+                            callbacks?.let { displayedCallbacks ->
+                                displayedCallbacks.onSelectTone(ReplyTone.entries[tone.selectedItemPosition])
+                                displayedCallbacks.onSelectAction(action.id)
+                            }
                         })
                     }
                 }
             }
-            for (index in 0 until actions.childCount) actions.getChildAt(index).isEnabled = state.canChooseDraft
+            for (index in 0 until actions.childCount) actions.getChildAt(index).apply {
+                cancelPendingInputEvents()
+                isPressed = false
+                isEnabled = state.canChooseDraft
+            }
             confirmationArea.removeAllViews()
             confirmationArea.visibility = if (state.pendingConfirmation != null) VISIBLE else GONE
             state.pendingConfirmation?.let { displayed ->
@@ -204,12 +245,12 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
                     }
                 } else confirmationArea.addView(label("Selection no longer valid. Cancel and choose again."))
                 confirmationArea.addView(label("Generating a draft does not send or accept anything. Cancel clears this session."))
-                confirmationArea.addView(confirmationButton(context).apply {
+                confirmationArea.addView(confirmationButton(context, ::blockedTap).apply {
                     akmaButton(ButtonVariant.Primary)
                     isEnabled = confirmation != null
-                    setOnClickListener { replies.confirmDisplayedDraft(displayed.id) }
+                    setOnClickListener { bridge.confirm(displayed.id) }
                 })
-                confirmationArea.addView(button("Cancel and clear session") { replies.cancelDisplayedDraft(displayed.id) })
+                confirmationArea.addView(button("Cancel and clear session") { bridge.callbacks(state, displayed.request.tone).onCancelConfirmation() })
             }
             val editing = state.phase in setOf(ReplyPhase.Editing, ReplyPhase.Copied)
             review.visibility = if (editing) VISIBLE else GONE
