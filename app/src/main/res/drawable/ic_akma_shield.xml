@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma Icon/Shield (14:156). 24dp, 2dp stroke; tint at use site. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:translateX="3"
+        android:translateY="1">
+        <path
+            android:strokeColor="#FF17121F"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M9 21C9 21 17 17 17 11V4L9 1L1 4V11C1 17 9 21 9 21Z" />
+        <path
+            android:strokeColor="#FF17121F"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M6 11L8 13L12 9" />
+    </group>
+</vector>

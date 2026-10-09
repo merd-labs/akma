@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma AKMA icon: 24dp frame, 2dp stroke. Path data is the Figma export; the group transform restores the 24dp frame. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:scaleX="1.7142857"
+        android:scaleY="1.7142857"
+        android:translateX="2"
+        android:translateY="2">
+        <path
+            android:pathData="M11.0833 7.58333C11.0833 7.89275 10.9604 8.1895 10.7416 8.40829C10.5228 8.62708 10.2261 8.75 9.91667 8.75H2.91667L0.583333 11.0833V1.75C0.583333 1.44058 0.70625 1.14383 0.925042 0.925042C1.14383 0.70625 1.44058 0.583333 1.75 0.583333H9.91667C10.2261 0.583333 10.5228 0.70625 10.7416 0.925042C10.9604 1.14383 11.0833 1.44058 11.0833 1.75V7.58333Z"
+            android:strokeColor="#FF6B6478"
+            android:strokeWidth="1.16667"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>
