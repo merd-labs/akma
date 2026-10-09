@@ -5,6 +5,9 @@ import android.os.SystemClock
 import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Contents
+import com.google.ai.edge.litertlm.Conversation
+import com.google.ai.edge.litertlm.Message
+import com.google.ai.edge.litertlm.MessageCallback
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
@@ -17,26 +20,29 @@ import ph.merd.akma.provisioning.ModelProvisionResult
 import ph.merd.akma.safety.ModelOutputSafety
 
 /** One CPU engine. The coordinator serializes calls and owns the timeout. */
-class LiteRtReplyEngine(context: Context) : LocalReplyEngine {
+class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
     private val app = context.applicationContext
-    private var engine: Engine? = null
+    private val runtime = NativeHandleSlot<Engine>()
+    override val requiresRestart: Boolean get() = runtime.quarantined
+
+    override suspend fun invalidateRuntime(): Result<Unit> = runtime.invalidate()
     private val provisioner = BundledModelProvisioner(app)
 
     override suspend fun initialize(): Result<Unit> = guarded {
-        engine?.close()
-        engine = null
+        runtime.invalidate().getOrThrow()
         val model = when (val result = provisioner.ensureBundledModel(BundledQwenArtifact.spec)) {
             is ModelProvisionResult.Verified -> result.model.file
             is ModelProvisionResult.Failure -> throw ModelUnavailableException()
         }
         val started = SystemClock.elapsedRealtime()
         val loaded = Engine(EngineConfig(modelPath = model.absolutePath, backend = Backend.CPU(), cacheDir = app.cacheDir.absolutePath))
+        runtime.install(loaded)
         try {
             loaded.initialize()
-            engine = loaded
             Log.i(TAG, "model_initialized_ms=${SystemClock.elapsedRealtime() - started}")
         } catch (failure: Throwable) {
-            loaded.close()
+            // Cleanup only; this catch never converts fatal VM errors into recoverable results.
+            runtime.invalidate()
             throw failure
         }
     }
@@ -100,8 +106,8 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine {
             else -> "other"
         }
     }
-    private fun generate(instruction: String, input: String, maxTokens: Int): String {
-        val active = engine ?: throw ModelUnavailableException()
+    private suspend fun generate(instruction: String, input: String, maxTokens: Int): String {
+        val active = runtime.current ?: throw ModelUnavailableException()
         val started = SystemClock.elapsedRealtime()
         val config = ConversationConfig(
             systemInstruction = Contents.of(instruction),
@@ -109,21 +115,54 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine {
             maxOutputToken = maxTokens,
             chatTemplate = QWEN_CHAT_TEMPLATE,
         )
-        return active.createConversation(config).use { conversation ->
-            conversation.sendMessage(input).toString().also {
+        val conversation = active.createConversation(config)
+        val handle = NativeHandleSlot<Conversation>().also { it.install(conversation) }
+        val operation = NativeReplyOperation(ModelOutputSafety.MAX_RAW_CHARS, onCancellationFailure = { runtime.quarantine() })
+        var primaryFailure = false
+        try {
+            return operation.await(
+                start = { callbacks ->
+                    conversation.sendMessageAsync(input, object : MessageCallback {
+                        override fun onMessage(message: Message) = callbacks.onText(message.toString())
+                        override fun onDone() = callbacks.onComplete()
+                        override fun onError(throwable: Throwable) = callbacks.onComplete(throwable)
+                    })
+                },
+                cancel = { conversation.cancelProcess() },
+            ).also {
                 Log.i(TAG, "generation_ms=${SystemClock.elapsedRealtime() - started} chars=${it.length}")
+            }
+        } catch (failure: Throwable) {
+            // Preserve cancellation and every original failure; classification happens in guarded/the coordinator.
+            primaryFailure = true
+            throw failure
+        } finally {
+            if (!operation.completed) {
+                // Startup or cancellation failed before a terminal callback. Closing could race native work.
+                handle.quarantine()
+                runtime.quarantine()
+            } else {
+                try {
+                    val cleanup = handle.invalidate()
+                    if (cleanup.isFailure && !primaryFailure) cleanup.getOrThrow()
+                } finally {
+                    if (handle.quarantined) runtime.quarantine()
+                }
             }
         }
     }
 
-    private inline fun <T> guarded(block: () -> T): Result<T> = try {
+    private suspend inline fun <T> guarded(block: () -> T): Result<T> = try {
+        if (runtime.quarantined) throw RuntimeRestartRequiredException()
         Result.success(block())
     } catch (cancel: CancellationException) {
         throw cancel
-    } catch (_: OutOfMemoryError) {
-        engine?.close()
-        engine = null
-        Result.failure(IllegalStateException("Insufficient memory for local model."))
+    } catch (failure: LinkageError) {
+        runtime.invalidate()
+        Result.failure(failure)
+    } catch (failure: OutOfMemoryError) {
+        runtime.invalidate()
+        Result.failure(failure)
     } catch (failure: Exception) {
         Result.failure(failure)
     }
