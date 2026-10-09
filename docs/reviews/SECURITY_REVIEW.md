@@ -33,7 +33,7 @@ No **Blocker**. Two **High**, both preventive: one latent code gap that must be 
 | F10 | Low | CI actions pinned by tag; no Gradle dependency verification | VERIFIED (absence) |
 | F11 | Info / decision | Rhence's flow says "tap the bubble → understands a copied message"; code is paste-only | VERIFIED |
 
-What was checked and found **good** is in §4.
+What was checked and found **good** is in §4. **Round 2 (2026-10-09 evening): PR-level re-verification and review matrix in §9** — F3 is **not** fixed by PR #12; F1 has no fix PR yet; F2 mostly corrected in PR #1.
 
 ## 2. Findings
 
@@ -188,3 +188,55 @@ Rhence master context step 3–4 and MVP table ("Understanding a copied message 
 - **Bootstrap was pushed during this review** (draft PR #4, head `02df71a`, verified identical to the reviewed commit). This branch is stacked on it; the review PR targets `chore/akma-bootstrap` and should be retargeted to `main` after #4 merges.
 - F3 vs `docs/TEST_SCENARIOS.md` ("Hide and reopen: preserve UI state") needs a product decision.
 - F11 clipboard-import decision.
+
+## 9. Round 2 — review of the actual PRs (matrix)
+
+Sources read fresh from GitHub, not local copies: `gh pr view/diff`, `gh run view --log`. Heads reviewed: #12 `fb410fe`, #11 `22e632d`, #7 `5c2586c`, #6 `f791025`, #1 `a233dc8`, #4 `02df71a`, #10 (this branch). Status labels: **TESTED** (I ran it), **VERIFIED** (read/grep/logs), **REASONED**, **NOT TESTED**, **NOT FOUND**.
+
+### 9.1 Requested review targets that do not exist yet
+
+| Requested | Result |
+|---|---|
+| CI patch PR (whitespace gate / safe checkout) | **NOT FOUND** — no branch or PR on `merd-labs/akma` (branches: bootstrap, security, submission, integration, overlay, main, device-benchmark, domain-contracts); no local worktree. Not reviewed. Criteria in §9.4. |
+| Domain-action-safety PR (fix for #8) | **NOT FOUND**. PR #6 is tests only and does not fix #8. |
+| Runtime / local-engine PR | **NOT FOUND**. Engine is still `UnavailableReplyEngine`. |
+
+### 9.2 Review matrix
+
+| ID | Finding | Evidence | Risk | Reproducibility | Current status | Required change | Retest result |
+|---|---|---|---|---|---|---|---|
+| M1 | **F1 / issue #8** label not bound to ID; summary unfiltered; `requiresUserDecision` unused | No PR touches `ReplyValidation.kt`/`ReplyCoordinator.kt`. PR #6 `ReplyValidationBoundaryTest.kt:43-47` asserts 1,500-char summary/label are *accepted*; no label≠id, control/bidi or `requiresUserDecision` test | High, latent (no real engine wired) | Code read; no exploit path until engine merges | **OPEN — no fix PR** | See §9.4 domain criteria; rewrite #6 boundary test when fix lands | NOT TESTED (nothing to test) |
+| M2 | **F3** message/draft retained after Close; PR #12 title/doc say "session cleanup" | #12 changes only `OverlayPanel.kt`, `OverlayService.kt`, test, doc — **no** `ReplyCoordinator` change, no `clearSession`; `releasePanel` only calls `session.replies.cancel()` | Medium; conflicts NFR-P5 and #12's own "clear" wording | **TESTED** emulator API 36, APK built from `fb410fe` (SHA-256 `01ec4cf4…75ac`): typed synthetic `PRTWELVEMARKER` → opened overlay → Close (0 akma windows, service gone) → relaunch Activity → marker still shown, **same pid 13797** → reopened overlay → marker shown again | **NOT FIXED** by #12 | Add `ReplyCoordinator.clearSession()` (single domain owner) and call from `releasePanel`/Activity stop; reword #12 title/doc: it cleans window/service, not data | FAIL (still retained). Process kill clears (as before) |
+| M3 | **F6** overlay hardening | `OverlayService.kt:103` still `FLAG_NOT_TOUCH_MODAL` only; grep finds no `FLAG_SECURE`/`filterTouchesWhenObscured` in `app/src/main` | Medium; panel now holds a Paste action so a spoofed/obscured panel is a better target | Flags **TESTED**: `dumpsys window` → `ty=APPLICATION_OVERLAY fl=NOT_TOUCH_MODAL HARDWARE_ACCELERATED`. Obscuring by 3rd-party overlay: not run | **OPEN** | `filterTouchesWhenObscured=true` on root; `FLAG_SECURE` (debug toggle for demo recording) | Flags: unchanged. Obscuring attack: **NOT TESTED** (needs API 30 device + overlay app) |
+| M4 | Explicit paste behaviour (#12) | `OverlayPanel.kt:38-50` paste only inside button click; `requestFocus`/`hasWindowFocus` guard; framework `onTextContextMenuItem(android.R.id.paste)`; grep: no `getPrimaryClip`, no clip listener | Low — matches AGENTS.md "no silent clipboard capture" | Paste with marker on clipboard: marker appeared in field (**TESTED**). Restore-after-delete step ambiguous (stale marker node) | **OK, with caveat** | None blocking. Caveat: Android 12+ will show system "pasted from clipboard" toast (not observable on this run) | Behaviour PASS; delete→paste restore **INCONCLUSIVE** |
+| M5 | Overlay lifecycle / permission (#12) | `OverlaySession` + `isOverlayShowRequest` (`OverlayService.kt:62,170`), AppOps watcher, `removeViewImmediate` | Low | Unit tests: my run `:app:testDebugUnitTest` → **32 tests, 0 failures, 0 errors** (**TESTED**). 5 Open/Close cycles on emulator: 0 windows after Close, 1 after Open, 0 services at end (**TESTED**) | **Improved, OK on emulator** | None blocking | Revocation, notification-Close, process-kill, rotation, screen-off: author's doc claims PASS on emulator — **NOT TESTED by me**. All physical-device checks **NOT TESTED** |
+| M6 | R2-2: `startForegroundService` race on closed-not-destroyed instance | `OverlayService.kt:62-65` returns before `startForeground` (`:81-82`); a repeat `startForegroundService` hitting that instance could raise `ForegroundServiceDidNotStartInTimeException` | Low–Medium, narrow window | REASONED only | **OPEN (hypothetical)** | Call `startForeground` (or `stopForeground`-safe path) before early return; or guard Open button until service gone | **NOT TESTED** |
+| M7 | R2-4: no pre-filter on pasted size | `OverlayPanel.kt` pushes text to coordinator after paste; >1,500 rejected only after EditText accepted it | Low (memory/jank) | REASONED | **OPEN** | `InputFilter.LengthFilter(1500)` on message/draft fields | **NOT TESTED** |
+| M8 | **F4** INTERNET guard | Merged-manifest permissions of the #12 APK (`apkanalyzer`): SYSTEM_ALERT_WINDOW, FOREGROUND_SERVICE(+SPECIAL_USE), POST_NOTIFICATIONS, AndroidX signature perm — **no INTERNET** | Medium (future regression) | **TESTED** on #12 APK; CI assertion absent in all PR heads | **OPEN** | `tools:node="remove"` + CI manifest check | Absence of INTERNET today: PASS. Does **not** prove offline inference |
+| M9 | CI `documentation` job red on #4, #6, #7, #10, #11, #12 | Logs (runs 37927867583, 37926299267): `git show --format= --check HEAD` flags trailing whitespace in preserved `docs/reference/elijah/*`; `#7` doc `PLAN.md:102` attributes it to `fetch-depth: 1` shallow checkout | Process risk: red gate trains people to ignore it, or invites deleting the check | Reproduced from logs (**VERIFIED**) | **OPEN — patch NOT FOUND** | Criteria §9.4 | NOT TESTED |
+| M10 | PR #6 android job red | Run 37925498078: `ReplyValidationBoundaryTest > requestedThreeActionCapRejectsFourReviewedActions FAILED` (`ReplyValidationBoundaryTest.kt:14`); "51 tests completed, 1 failed" | Process: deliberate failing test would turn `chore/akma-bootstrap` red on merge | **VERIFIED** (log) | **OPEN** | Mark as expected-failure/`@Ignore` referencing issue #3, or decide cap first | NOT TESTED |
+| M11 | **F2 / issue #9** unsubstantiated claims in PR #1 | New head `a233dc8`: README now "Targeted…/Pending Verification" (`README.md:21-26`); Pova 2 sentence wrapped in `[CONDITIONAL IF VERIFIED]` (`SOCIAL_REQUIREMENTS.md:19`); `AI_DISCLOSURE.md:3` "NO LOCAL INFERENCE MODEL IS VERIFIED" | Was High; now Low–Medium | **VERIFIED** by diff `48c4e0e..a233dc8` | **MOSTLY FIXED — 2 residuals** | (a) `SOCIAL_REQUIREMENTS.md:17` still states in present tense that "a local LLM running directly on your device generates a context-aware reply draft" — make conditional. (b) Event name changed to "Cerebral Valley" (`SOCIAL_REQUIREMENTS.md:11,17,24`, `CHECKLIST.md:24`) while repo docs and the task brief say AppBuildersPH Hackathon 2026 — Miguel to confirm before posting | Re-read: residuals remain. Keep #9 open until fixed |
+| M12 | PR #11 device collector | `scripts/bench/collect.sh`: read-only `adb` queries, no launch/clipboard/logcat, serial never saved, emulator rejected, `umask 077`, `noclobber`, regex-validated fields | Low | **VERIFIED** by reading `collect.sh` only | **OK** | None | `collect.ps1`, `test_collectors.py`, evidence template **NOT REVIEWED**; collector **NOT RUN** |
+| M13 | **F5** model provenance / debuggable build | No PR adds hash/source/licence pinning or a non-debuggable build type; `docs/MODEL_VALIDATION.md` still NOT SELECTED | Medium | VERIFIED (absence) | **OPEN** | §9.4 runtime criteria | NOT TESTED |
+| M14 | **F7 / F8** clipboard sensitivity, IME learning | `ReplyPresentation.kt` untouched; grep: no `EXTRA_IS_SENSITIVE`, no `IME_FLAG_NO_PERSONALIZED_LEARNING` | Low | VERIFIED (absence) | **OPEN** | As §2 F7/F8 | NOT TESTED |
+| M15 | Offline-inference claim | No model in any PR; physical **TECNO LE7 (Pova 2)** appeared on `adb devices` during this review but was **not used** (runbook: one operator per phone; collector needs Elijah's slot) | Claim risk | — | **No offline claim is supportable** | Run airplane-mode evidence on Pova 2 with real engine first | **NOT TESTED** |
+
+Note on the APK hash: building `fb410fe` here gave SHA-256 `01ec4cf4d7fb1b709793fe64c319b1ff8ebaedd9012d0db156a354d836b875ac`; `docs/evidence/overlay.md` records `ab6feebb…ed02c`. Debug builds are not reproducible across machines/paths, so this is not a defect, but the evidence APK is not independently identifiable by hash.
+
+### 9.3 Exploitable vs latent (current state)
+
+- **Exploitable in the shipped build:** none found. F3 retention is a confirmed behaviour (TESTED) but needs local access to the unlocked phone/process; it is a requirement conflict, not a remote exploit.
+- **Latent (needs a real engine or a malicious co-installed app):** M1 (F1), M3 (obscured touches), M5-adjacent M6/M7, M13.
+- **Process/claim risks:** M9, M10, M11.
+
+### 9.4 Review criteria for PRs that are not yet present
+
+**CI patch.** Must (1) keep a whitespace gate for *changed* files — `fetch-depth: 0` and `git diff --check <base>...<head>` (`github.event.pull_request.base.sha`; for push use `github.event.before`, falling back to the merge-base with `main` when it is the zero SHA); (2) exclude only the preserved archive `docs/reference/elijah/**` (path exclusion or `.gitattributes -whitespace`), never skip the job; (3) keep `permissions: contents: read`, no `pull_request_target`, no secrets in PR jobs, `persist-credentials: false` on checkout, actions pinned by commit SHA; (4) add a merged-manifest `INTERNET` assertion (M8). Verify by pushing a deliberate trailing-space change in a test branch and seeing the job fail.
+
+**Domain action safety (#8).** Render labels from a local `id→label` map (ignore model label); cap and strip control/bidi characters from `summary`, display it as AI-generated untrusted text; `requiresUserDecision == true` forces an explicit confirm the model cannot skip; sanitise drafts before clipboard; `clearSession()` (M2); tests: label≠id, injection-style summary, 1,501 chars, bidi/control chars, duplicate/unknown IDs; no `docs/CONTRACT.md` signature change.
+
+**Runtime adapter.** Pinned model URL/revision/SHA-256/licence verified before load; app-private storage; no INTERNET in merged manifest (CI-asserted); no prompt/response logging; context reset per request; evidence of airplane-mode generation on Pova 2 (not emulator, not laptop) with APK SHA before any "offline" wording. **No INTERNET permission is necessary but not sufficient** evidence of offline inference: it only shows the app cannot open sockets.
+
+### 9.5 Coordination
+
+One named owner per file set to avoid collisions: domain (`ReplyCoordinator.kt`, `ReplyValidation.kt`, #6 tests) — fix for M1/M2 lands in one PR; manifest/Gradle/CI — Miguel. This review does not patch production code. All PRs here are authored by the same GitHub account as this review, so no approval is given; review comments only.
