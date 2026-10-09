@@ -84,6 +84,13 @@
     <string name="akma_reply_here">Reply here instead</string>
     <string name="akma_reply_here_hint">No bubble? You can paste a message and reply inside Akma.</string>
     <string name="akma_switch_label">Show the Akma bubble</string>
+    <string name="akma_paste_blocked">Nothing to paste here. Copy a message first, or tap the message field and use your keyboard\'s Paste.</string>
+    <string name="akma_demo_badge">DEMO · sample reply, not AI</string>
+    <string name="akma_demo_caption">Demo data. Not read by AI.</string>
+    <string name="akma_review_choice_refine">%1$s · %2$s · %3$s</string>
+    <string name="akma_refine_regenerate">Regenerate</string>
+    <string name="akma_refine_shorter">Shorter</string>
+    <string name="akma_refine_more_formal">More formal</string>
     <string name="akma_preview_badge">PREVIEW · sample text, not AI output</string>
 
     <string name="akma_tone_professional">Professional</string>

@@ -43,11 +43,11 @@ internal fun ReplyState.displayedConfirmation(): DraftConfirmation? {
 }
 
 /** Check live state as well as enabled widgets: another surface can consume the request first. */
-internal fun ReplyCoordinator.selectDraft(actionId: String, tone: ReplyTone) {
+internal fun ReplyCoordinator.selectDraft(actionId: String, tone: ReplyTone, instruction: String = "") {
     val current = state.value
     val canonical = ActionCatalog.action(actionId) ?: return
     if (!current.canChooseDraft || current.analysis?.actions?.singleOrNull { it.id == actionId } != canonical) return
-    draft(actionId, tone)
+    draft(actionId, tone, instruction)
 }
 
 internal fun ReplyCoordinator.confirmDisplayedDraft(displayedId: Long) {

@@ -70,6 +70,31 @@ class PanelStateMapperTest {
     }
 
     @Test
+    fun refineNeedsADraftAndTheActionThatMadeIt() {
+        val editing = ReplyState(phase = ReplyPhase.Editing, message = "m", analysis = analysis, draft = "d")
+        assertTrue(editing.ui(selected = action.id).canRefine)
+        assertFalse(editing.ui(selected = null).canRefine)
+        assertFalse(ReplyState(phase = ReplyPhase.Drafting, message = "m", analysis = analysis).ui(selected = action.id).canRefine)
+        assertFalse(ReplyState(phase = ReplyPhase.ChoosingAction, message = "m", analysis = analysis).ui(selected = action.id).canRefine)
+    }
+
+    @Test
+    fun refineConfirmationShowsWhatWillChange() {
+        val refine = pending.copy(request = pending.request.copy(userInstruction = RefineKind.Shorter.instruction))
+        val ui = ReplyState(phase = ReplyPhase.ChoosingAction, message = "message", analysis = analysis, pendingConfirmation = refine).ui()
+        assertEquals(RefineKind.Shorter, ui.confirmation!!.refine)
+        assertNull(ReplyState(phase = ReplyPhase.ChoosingAction, message = "message", analysis = analysis, pendingConfirmation = pending).ui().confirmation!!.refine)
+    }
+
+    @Test
+    fun languageAndDemoPassThroughUnchanged() {
+        val ui = ReplyState(phase = ReplyPhase.ChoosingAction, message = "m", analysis = analysis).toPanelUi(ReplyTone.PROFESSIONAL, null, language = "English", demo = true)
+        assertEquals("English", ui.intent!!.language)
+        assertTrue(ui.demo)
+        assertFalse(ReplyState(phase = ReplyPhase.Ready).ui().demo)
+    }
+
+    @Test
     fun coordinatorNoticeIsShownVerbatimExceptAfterCopy() {
         assertEquals("Cancelled.", ReplyState(phase = ReplyPhase.Ready, notice = "Cancelled.").ui().notice)
         val copied = ReplyState(phase = ReplyPhase.Copied, message = "m", analysis = analysis, draft = "d", notice = "Copied. Paste and send manually.")

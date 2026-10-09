@@ -114,10 +114,14 @@ class ReplyCoordinator(
         }
     }
 
-    /** An action tap requests confirmation. It never starts inference on its own. */
-    fun draft(actionId: String, tone: ReplyTone) {
+    /**
+     * An action tap requests confirmation. It never starts inference on its own.
+     * [instruction] is an optional refine request (e.g. "Make it shorter."); it is staged and shown for
+     * confirmation like any other draft request.
+     */
+    fun draft(actionId: String, tone: ReplyTone, instruction: String = "") {
         if (!initialized || state.value.phase !in setOf(ReplyPhase.ChoosingAction, ReplyPhase.Editing, ReplyPhase.Copied)) return
-        val request = DraftRequest(AnalyzeRequest(state.value.message), actionId, tone)
+        val request = DraftRequest(AnalyzeRequest(state.value.message), actionId, tone, userInstruction = instruction)
         val analysis = state.value.analysis ?: return
         if (!validate(ReplyValidation.validate(request, analysis.actions))) return
         if (state.value.pendingConfirmation?.request == request) return

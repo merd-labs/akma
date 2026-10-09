@@ -27,6 +27,12 @@ import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.widget.ImageView
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.dp
 import android.widget.FrameLayout
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
@@ -39,6 +45,8 @@ import ph.merd.akma.MainActivity
 import ph.merd.akma.OverlayStatus
 import ph.merd.akma.R
 import ph.merd.akma.domain.ReplyCoordinator
+import ph.merd.akma.ui.LiveJourneyPanel
+import ph.merd.akma.ui.theme.AkmaTheme
 import ph.merd.akma.ui.theme.AkmaTokens
 
 /** User-started only. No clipboard listener, background restart, or automatic message capture. */
@@ -46,7 +54,8 @@ class OverlayService : Service() {
     private val session get() = application as AkmaApplication
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var windows: WindowManager
-    private var panel: OverlayPanel? = null
+    private var panel: ComposeView? = null
+    private var composeHost: OverlayComposeHost? = null
     private var host: FrameLayout? = null
     private var panelCollector: Job? = null
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -264,15 +273,33 @@ class OverlayService : Service() {
         bubbleAnimator?.cancel()
         check(Settings.canDrawOverlays(this))
         val root = checkNotNull(host)
-        val view = OverlayPanel(this, session.replies) {
-            try { lifecycle.collapse() }
-            catch (_: RuntimeException) { fail("Panel unavailable. Continue in the Activity.") }
+        // The same Compose journey as the Activity (Figma 27:1807 / 27:1966), hosted in the overlay window.
+        val owner = OverlayComposeHost().also { it.attachTo(root) }
+        composeHost = owner
+        val view = ComposeView(this).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
+            setContent {
+                AkmaTheme {
+                    val maxHeight = (LocalConfiguration.current.screenHeightDp * PANEL_MAX_HEIGHT).dp
+                    LiveJourneyPanel(
+                        replies = session.replies,
+                        demo = session.demoMode,
+                        languageLabel = session.languageLabel,
+                        onClose = {
+                            try { lifecycle.collapse() }
+                            catch (_: RuntimeException) { fail("Panel unavailable. Continue in the Activity.") }
+                        },
+                        // The window resizes for the keyboard (SOFT_INPUT_ADJUST_RESIZE), so no extra IME padding.
+                        modifier = Modifier.heightIn(max = maxHeight),
+                        imePadding = false,
+                    )
+                }
+            }
         }
         panel = view
         root.removeAllViews()
         root.addView(view)
         windows.updateViewLayout(root, panelParams())
-        panelCollector = scope.launch { session.replies.state.collect { view.render(it) } }
     }
 
     private fun displayBubble() {
@@ -280,10 +307,17 @@ class OverlayService : Service() {
         panelCollector?.cancel()
         panelCollector = null
         hideKeyboard(root)
+        disposePanel()
         panel = null
         root.removeAllViews()
         root.addView(bubble())
         windows.updateViewLayout(root, bubbleParams())
+    }
+
+    private fun disposePanel() {
+        panel?.disposeComposition()
+        composeHost?.destroy()
+        composeHost = null
     }
 
     /** Both existing APIs are main-thread operations; cancel invalidates pending results first. */
@@ -319,6 +353,7 @@ class OverlayService : Service() {
         }
         scope.cancel()
         panelCollector = null
+        disposePanel()
         panel = null
         val view = host
         host = null
@@ -344,6 +379,8 @@ class OverlayService : Service() {
         private const val CHANNEL = "akma_overlay"
         private const val NOTIFICATION_ID = 1
         private const val ACTION_CLOSE = "ph.merd.akma.CLOSE_OVERLAY"
+        // Figma panel top sits just below the status bar (y 36 of 800).
+        private const val PANEL_MAX_HEIGHT = 0.92f
     }
 }
 
