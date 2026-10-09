@@ -12,6 +12,7 @@ import com.google.ai.edge.litertlm.SamplerConfig
 import java.io.File
 import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
+import ph.merd.akma.safety.ModelOutputSafety
 
 /** One CPU engine. The coordinator serializes calls and owns the timeout. */
 class LiteRtReplyEngine(context: Context) : LocalReplyEngine {
@@ -52,8 +53,10 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine {
 
     override suspend fun analyze(request: AnalyzeRequest): Result<AnalysisResult> = guarded {
         ReplyValidation.validate(request).getOrThrow()
-        val input = org.json.JSONObject().put("incoming_message", request.message)
-            .put("previous_context", request.history).put("relationship", request.relationship).toString()
+        // Copied text is untrusted data: strip chat-template tokens so it cannot close a turn or forge a role.
+        val safe = neutralizedForPrompt(request)
+        val input = org.json.JSONObject().put("incoming_message", safe.message)
+            .put("previous_context", safe.history).put("relationship", safe.relationship).toString()
         val raw = generate(prompt("analyze_v2.txt"), input, 192)
         val json = org.json.JSONObject(raw.trim())
         require(raw.trim().startsWith("{") && raw.trim().endsWith("}")) { "Malformed analysis." }
@@ -67,13 +70,14 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine {
     override suspend fun draft(request: DraftRequest): Result<String> = guarded {
         ReplyValidation.validate(request.original).getOrThrow()
         val selected = ActionCatalog.action(request.selectedActionId) ?: error("Unknown action.")
-        val input = org.json.JSONObject().put("incoming_message", request.original.message)
-            .put("previous_context", request.original.history)
-            .put("relationship", request.original.relationship)
+        val safe = neutralizedForPrompt(request)
+        val input = org.json.JSONObject().put("incoming_message", safe.original.message)
+            .put("previous_context", safe.original.history)
+            .put("relationship", safe.original.relationship)
             .put("selected_action_id", request.selectedActionId)
             .put("selected_intention", selected.label)
             .put("tone", request.tone.name.lowercase())
-            .put("user_instructions", request.userInstruction).toString()
+            .put("user_instructions", safe.userInstruction).toString()
         val actionRule = when (request.selectedActionId) {
             "reschedule" -> "The user selected RESCHEDULE. Ask the sender for a different interview time. Do not say you are available Friday at 10 or accept that time."
             "clarify", "ask_agenda", "ask_to_clarify" -> "The user selected a question. Ask for details before agreeing to anything."
@@ -128,10 +132,11 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine {
         Result.success(block())
     } catch (cancel: CancellationException) {
         throw cancel
-    } catch (_: OutOfMemoryError) {
+    } catch (oom: OutOfMemoryError) {
+        // Release the native engine, then let the coordinator map the Error to a constant, content-free message.
         engine?.close()
         engine = null
-        Result.failure(IllegalStateException("Insufficient memory for local model."))
+        throw oom
     } catch (failure: Exception) {
         Result.failure(failure)
     }
@@ -173,3 +178,15 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine {
 
     }
 }
+
+/** Every copied/pasted field that reaches a prompt passes through here; output sanitising happens in the coordinator. */
+internal fun neutralizedForPrompt(request: AnalyzeRequest): AnalyzeRequest = request.copy(
+    message = ModelOutputSafety.neutralizePromptInput(request.message),
+    history = ModelOutputSafety.neutralizePromptInput(request.history),
+    relationship = request.relationship?.let(ModelOutputSafety::neutralizePromptInput),
+)
+
+internal fun neutralizedForPrompt(request: DraftRequest): DraftRequest = request.copy(
+    original = neutralizedForPrompt(request.original),
+    userInstruction = ModelOutputSafety.neutralizePromptInput(request.userInstruction),
+)

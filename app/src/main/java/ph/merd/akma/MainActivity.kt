@@ -48,6 +48,7 @@ import ph.merd.akma.ui.selectDraft
 import ph.merd.akma.ui.confirmDisplayedDraft
 import ph.merd.akma.ui.cancelDisplayedDraft
 import ph.merd.akma.ui.confirmationButton
+import ph.merd.akma.ui.copyButton
 
 class MainActivity : ComponentActivity() {
     private val session get() = application as AkmaApplication
@@ -178,10 +179,17 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier.fillMaxWidth(),
                                 minLines = 3,
                             )
-                            Button(onClick = {
-                                copyError = !copyDraft(this@MainActivity, session.replies.state.value)
-                                if (!copyError) session.replies.copied()
-                            }, enabled = state.canCopy) { Text("Copy draft") }
+                            AndroidView(
+                                factory = { context -> copyButton(context) },
+                                update = { button ->
+                                    button.isEnabled = state.canCopy
+                                    button.setOnClickListener {
+                                        copyError = !copyDraft(this@MainActivity, session.replies.state.value)
+                                        if (!copyError) session.replies.copied()
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
                             if (copyError) Text("Copy failed. Select the draft and copy manually.")
                         }
                     }

@@ -1,8 +1,11 @@
 package ph.merd.akma.ui
 
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
+import android.os.PersistableBundle
 import android.view.MotionEvent
 import android.widget.Button
 import ph.merd.akma.domain.ActionCatalog
@@ -53,8 +56,12 @@ internal fun ReplyCoordinator.cancelDisplayedDraft(displayedId: Long) {
 internal fun isObscuredTouch(flags: Int): Boolean =
     flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED) != 0
 
-/** Native filtering also protects Confirm when hosted inside Compose through AndroidView. */
-internal fun confirmationButton(context: Context): Button = object : Button(context) {
+/**
+ * Native filtering also protects the button when hosted inside Compose through AndroidView. Used for the two
+ * consequential controls (Confirm, Copy): a tap delivered while another app's window covers the tap point is dropped.
+ * Deliberately not applied panel-wide: full-screen dimmer overlays would otherwise block every control.
+ */
+internal fun obscuredAwareButton(context: Context, label: String): Button = object : Button(context) {
     override fun onFilterTouchEventForSecurity(event: MotionEvent): Boolean {
         if (isObscuredTouch(event.flags)) {
             cancelPendingInputEvents()
@@ -64,10 +71,14 @@ internal fun confirmationButton(context: Context): Button = object : Button(cont
         return super.onFilterTouchEventForSecurity(event)
     }
 }.apply {
-    text = "Confirm and generate draft"
+    text = label
     isSaveEnabled = false
     filterTouchesWhenObscured = true
 }
+
+internal fun confirmationButton(context: Context): Button = obscuredAwareButton(context, "Confirm and generate draft")
+
+internal fun copyButton(context: Context): Button = obscuredAwareButton(context, "Copy draft")
 
 fun ReplyState.statusText(): String = when (phase) {
     ReplyPhase.ModelUnavailable -> "Model unavailable. No local AI is configured."
@@ -85,8 +96,12 @@ fun ReplyState.statusText(): String = when (phase) {
 fun copyDraft(context: Context, state: ReplyState): Boolean {
     if (!state.canCopy) return false
     return try {
-        context.getSystemService(ClipboardManager::class.java)
-            .setPrimaryClip(ClipData.newPlainText("Akma draft", state.draft))
+        val clip = ClipData.newPlainText("Akma draft", state.draft)
+        if (Build.VERSION.SDK_INT >= 33) {
+            // Asks the system UI/keyboards not to show the draft in clipboard previews. Ignored below API 33.
+            clip.description.extras = PersistableBundle().apply { putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true) }
+        }
+        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
         true
     } catch (_: RuntimeException) {
         false
