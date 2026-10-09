@@ -82,4 +82,27 @@ class DraftGroundingTest {
     @Test fun emptyDraftIsClear() {
         assertTrue(DraftGrounding.check("", hr).isClear)
     }
+
+    // Host-CPU run of the pinned model with the app's prompts (synthetic complaint / deadline messages).
+    private val complaint = "My order arrived 3 days late. I want a full refund now or I will report you."
+    private val deadline = "Can you finish the report tonight? The client is waiting for the update."
+
+    @Test fun observedModelPromisesRefundToAComplaint() {
+        val apologize = DraftGrounding.check("I'm sorry to hear about your experience. I'll make sure to expedite your order and provide a full refund as soon as possible.", complaint, "", "apologize")
+        val explain = DraftGrounding.check("I understand your frustration. We will look into the issue and provide a full refund as soon as possible.", complaint, "", "explain")
+        assertTrue(GroundingConcern.COMMITMENT_PHRASE in apologize.concerns)
+        assertTrue(GroundingConcern.COMMITMENT_PHRASE in explain.concerns)
+    }
+
+    @Test fun observedModelCommitsToTheDeadlineAndInventsAMeeting() {
+        val update = DraftGrounding.check("Sure, I can finish the report tonight. The client will appreciate the quick turnaround.", deadline, "", "give_update")
+        assertTrue(GroundingConcern.COMMITMENT_PHRASE in update.concerns)
+        val moreTime = DraftGrounding.check("I understand, but I need to finish the report tonight to meet the client's deadline. Can we schedule a meeting tomorrow to discuss the report?", deadline, "", "request_more_time")
+        assertTrue(GroundingConcern.UNGROUNDED_DETAIL in moreTime.concerns) // "tomorrow" was never mentioned
+    }
+
+    @Test fun observedGoodAcceptDraftIsNotOverFlagged() {
+        val accept = DraftGrounding.check("Thank you for the invitation, I will check my schedule and get back to you.", hr, "", "accept")
+        assertEquals(emptySet<GroundingConcern>(), accept.concerns)
+    }
 }
