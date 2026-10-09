@@ -200,4 +200,27 @@ class JourneyCoordinatorAdapterTest {
         assertTrue(engine.requests.isEmpty())
         assertNull(replies.state.value.pendingConfirmation)
     }
+
+    @Test fun shellCloseClearsActiveSessionBeforeNavigationAndRejectsLateDraft() = runTest {
+        val finish = CompletableDeferred<String>()
+        val replies = ready(Engine(finish))
+        replies.analyze(); runCurrent()
+        replies.selectDraft("reschedule", ReplyTone.CONCISE)
+        replies.confirmDisplayedDraft(requireNotNull(replies.state.value.pendingConfirmation).id)
+        runCurrent()
+        var closes = 0
+        var selected: String? = "reschedule"
+        val bridge = JourneyCoordinatorAdapter(replies, {}, { true }, close = {
+            assertEquals(ReplyState(phase = ReplyPhase.Ready), replies.state.value)
+            assertNull(selected)
+            closes++
+        })
+        val callbacks = bridge.callbacks(replies.state.value, ReplyTone.CONCISE, actionSelected = { selected = it })
+        requireNotNull(callbacks.onClose).invoke()
+        finish.complete("Synthetic discarded after Close")
+        runCurrent()
+        assertEquals(1, closes)
+        assertEquals(ReplyState(phase = ReplyPhase.Ready), replies.state.value)
+        assertNull(adapter(replies).callbacks(replies.state.value, ReplyTone.PROFESSIONAL).onClose)
+    }
 }

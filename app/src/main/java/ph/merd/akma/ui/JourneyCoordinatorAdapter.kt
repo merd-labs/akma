@@ -4,6 +4,7 @@ import ph.merd.akma.domain.ReplyCoordinator
 import ph.merd.akma.domain.ReplyPhase
 import ph.merd.akma.domain.ReplyState
 import ph.merd.akma.domain.ReplyTone
+import ph.merd.akma.overlay.clearOverlayReplySession
 
 /** Event bindings only. Construction/rendering never starts work or creates another engine. */
 internal class JourneyCoordinatorAdapter(
@@ -25,7 +26,12 @@ internal class JourneyCoordinatorAdapter(
         var draftSnapshot = displayed
         fun current() = replies.state.value === displayed
         return JourneyCallbacks(
-            onClose = close,
+            onClose = close?.let { dismiss -> {
+                // Dismissal is a whole-session user action, including work started on the other surface.
+                clearOverlayReplySession(replies)
+                actionSelected(null)
+                dismiss()
+            } },
             onMessageChange = { text ->
                 val live = replies.state.value
                 // Continuous typing must not wait for recomposition between characters.

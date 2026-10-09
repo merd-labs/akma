@@ -17,7 +17,6 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
-import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.FrameLayout
@@ -41,7 +40,6 @@ class OverlayService : Service() {
     private var panel: OverlayPanel? = null
     private var host: FrameLayout? = null
     private var panelCollector: Job? = null
-    private var panelGeometry: OverlayPanelGeometry? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private val lifecycle = OverlaySession(::attachBubble, ::releaseWindow, ::displayPanel, ::displayBubble, ::clearReplySession)
     private var watchingPermission = false
@@ -112,10 +110,6 @@ class OverlayService : Service() {
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
         }
         host = root
-        root.setOnApplyWindowInsetsListener { _, insets ->
-            updatePanelGeometry(insets)
-            insets // Let the native input and children receive their normal insets.
-        }
         root.addOnAttachStateChangeListener(attachmentListener)
         root.addView(bubble())
         windows.addView(root, bubbleParams())
@@ -130,10 +124,6 @@ class OverlayService : Service() {
     private fun bubble() = Button(this).apply {
         text = "Akma"
         contentDescription = "Open Akma panel"
-        overlayStyle(primary = true)
-        setPadding(dp(4), 0, dp(4), 0)
-        textSize = 12f
-        maxLines = 1
         setOnClickListener {
             try { lifecycle.expand() }
             catch (_: RuntimeException) { fail("Panel unavailable. Continue in the Activity.") }
@@ -151,39 +141,16 @@ class OverlayService : Service() {
         x = dp(12)
     }
 
-    private fun geometry(insets: WindowInsets? = host?.rootWindowInsets): OverlayPanelGeometry {
-        val metrics = windows.maximumWindowMetrics
-        val bounds = metrics.bounds
-        val safe = (insets ?: metrics.windowInsets).getInsets(
-            WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout() or WindowInsets.Type.ime(),
-        )
-        return overlayPanelGeometry(
-            bounds.width(), bounds.height(), safe.left, safe.top, safe.right, safe.bottom,
-            desiredWidth = dp(340), margin = dp(16),
-        )
-    }
-
-    private fun panelParams(value: OverlayPanelGeometry) = WindowManager.LayoutParams(
-        value.width, WindowManager.LayoutParams.WRAP_CONTENT,
+    private fun panelParams() = WindowManager.LayoutParams(
+        minOf(dp(340), resources.displayMetrics.widthPixels - dp(32)).coerceAtLeast(1),
+        WindowManager.LayoutParams.WRAP_CONTENT,
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
         PixelFormat.TRANSLUCENT,
     ).apply {
-        gravity = Gravity.TOP or Gravity.LEFT
-        x = value.x
-        y = value.y
+        gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        y = dp(48)
         softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-    }
-
-    private fun updatePanelGeometry(insets: WindowInsets) {
-        val view = panel ?: return
-        val root = host ?: return
-        val next = geometry(insets)
-        if (next == panelGeometry) return
-        panelGeometry = next
-        view.setAvailableHeight(next.maxHeight)
-        try { windows.updateViewLayout(root, panelParams(next)) }
-        catch (_: RuntimeException) { fail("Panel unavailable. Continue in the Activity.") }
     }
 
     private fun displayPanel() {
@@ -196,11 +163,7 @@ class OverlayService : Service() {
         panel = view
         root.removeAllViews()
         root.addView(view)
-        val next = geometry()
-        panelGeometry = next
-        view.setAvailableHeight(next.maxHeight)
-        windows.updateViewLayout(root, panelParams(next))
-        root.requestApplyInsets()
+        windows.updateViewLayout(root, panelParams())
         panelCollector = scope.launch { session.replies.state.collect { view.render(it) } }
     }
 
@@ -210,7 +173,6 @@ class OverlayService : Service() {
         panelCollector = null
         hideKeyboard(root)
         panel = null
-        panelGeometry = null
         root.removeAllViews()
         root.addView(bubble())
         windows.updateViewLayout(root, bubbleParams())
@@ -248,13 +210,11 @@ class OverlayService : Service() {
         scope.cancel()
         panelCollector = null
         panel = null
-        panelGeometry = null
         val view = host
         host = null
         view?.let {
             clearReplySession()
             it.removeOnAttachStateChangeListener(attachmentListener)
-            it.setOnApplyWindowInsetsListener(null)
             hideKeyboard(it)
             try { windows.removeViewImmediate(it) }
             catch (_: RuntimeException) { /* Already detached, or addView failed. */ }
