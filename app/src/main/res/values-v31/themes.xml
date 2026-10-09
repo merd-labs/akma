@@ -1,0 +1,14 @@
+<resources>
+    <style name="Theme.Akma" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- API 31+ adds the Figma branding image (66:2452) below the mark. -->
+    <style name="Theme.Akma.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/akma_bg_brand</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/akma_splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.Akma</item>
+        <item name="android:windowSplashScreenBrandingImage">@drawable/akma_splash_branding</item>
+    </style>
+</resources>

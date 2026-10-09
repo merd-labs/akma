@@ -18,7 +18,10 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
-import android.widget.Button
+import android.content.res.ColorStateList
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
+import android.widget.ImageView
 import android.widget.FrameLayout
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +34,7 @@ import ph.merd.akma.MainActivity
 import ph.merd.akma.OverlayStatus
 import ph.merd.akma.R
 import ph.merd.akma.domain.ReplyCoordinator
+import ph.merd.akma.ui.theme.AkmaTokens
 
 /** User-started only. No clipboard listener, background restart, or automatic message capture. */
 class OverlayService : Service() {
@@ -66,26 +70,16 @@ class OverlayService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (lifecycle.closed || !isOverlayShowRequest(intent != null, intent?.action)) {
+            // The Activity starts this service with startForegroundService(); Android requires startForeground()
+            // within seconds even when we are about to stop, otherwise ForegroundServiceDidNotStartInTimeException.
+            if (intent != null && intent.action == null) {
+                try { startAsForeground() } catch (_: RuntimeException) { /* stopping anyway */ }
+            }
             closeOverlay()
             return START_NOT_STICKY
         }
         try {
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(NotificationChannel(CHANNEL, "Akma overlay", NotificationManager.IMPORTANCE_LOW))
-            val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            val close = PendingIntent.getService(this, 1, Intent(this, OverlayService::class.java).setAction(ACTION_CLOSE), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            val notification = Notification.Builder(this, CHANNEL)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("Akma assistant is on")
-                .setContentText("Tap the bubble to paste. Close stops the assistant.")
-                .setContentIntent(open)
-                .setOngoing(true)
-                .addAction(Notification.Action.Builder(null, "Open Akma", open).build())
-                .addAction(Notification.Action.Builder(null, "Close", close).build())
-                .build()
-            if (Build.VERSION.SDK_INT >= 34) {
-                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-            } else startForeground(NOTIFICATION_ID, notification)
+            startAsForeground()
             if (!lifecycle.show(Settings.canDrawOverlays(this))) {
                 fail("Overlay permission required. Continue in the Activity.")
             }
@@ -93,6 +87,25 @@ class OverlayService : Service() {
             fail("Overlay unavailable. Continue in the Activity and retry.")
         }
         return START_NOT_STICKY
+    }
+
+    private fun startAsForeground() {
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(NotificationChannel(CHANNEL, "Akma overlay", NotificationManager.IMPORTANCE_LOW))
+        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val close = PendingIntent.getService(this, 1, Intent(this, OverlayService::class.java).setAction(ACTION_CLOSE), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val notification = Notification.Builder(this, CHANNEL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Akma assistant is on")
+            .setContentText("Tap the bubble to paste. Close stops the assistant.")
+            .setContentIntent(open)
+            .setOngoing(true)
+            .addAction(Notification.Action.Builder(null, "Open Akma", open).build())
+            .addAction(Notification.Action.Builder(null, "Close", close).build())
+            .build()
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else startForeground(NOTIFICATION_ID, notification)
     }
 
     private fun attachBubble() {
@@ -112,35 +125,53 @@ class OverlayService : Service() {
         session.overlayStatus.value = OverlayStatus(open = true)
     }
 
-    private fun bubble() = Button(this).apply {
-        text = "Akma"
-        contentDescription = "Open Akma panel"
-        setOnClickListener {
-            try { lifecycle.expand() }
-            catch (_: RuntimeException) { fail("Panel unavailable. Continue in the Activity.") }
+    /** Figma Akma bubble (18:117): 56dp bg/brand circle with the white mark, Elevation/4, in a 72dp window. */
+    private fun bubble() = FrameLayout(this).apply {
+        val circle = FrameLayout(context).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(AkmaTokens.BG_BRAND.toInt())
+            }
+            foreground = RippleDrawable(ColorStateList.valueOf(0x33FFFFFF), null, GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0xFFFFFFFF.toInt()) })
+            elevation = dp(8).toFloat()
+            outlineSpotShadowColor = AkmaTokens.BG_BRAND_STRONG.toInt()
+            outlineAmbientShadowColor = AkmaTokens.TEXT_PRIMARY.toInt()
+            contentDescription = "Open Akma panel"
+            isClickable = true
+            setOnClickListener {
+                try { lifecycle.expand() }
+                catch (_: RuntimeException) { fail("Panel unavailable. Continue in the Activity.") }
+            }
+            addView(ImageView(context).apply {
+                setImageResource(R.drawable.akma_logo_mark)
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, FrameLayout.LayoutParams(dp(30), (dp(30) * 0.923f).toInt(), Gravity.CENTER))
         }
+        addView(circle, FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER))
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
     private fun bubbleParams() = WindowManager.LayoutParams(
-        dp(64), dp(64), WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+        dp(72), dp(72), WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
         PixelFormat.TRANSLUCENT,
     ).apply {
+        // Figma: right edge, a little below centre (y 520 of 800).
         gravity = Gravity.END or Gravity.CENTER_VERTICAL
-        x = dp(12)
+        x = dp(4)
+        y = dp(156)
     }
 
     private fun panelParams() = WindowManager.LayoutParams(
-        minOf(dp(340), resources.displayMetrics.widthPixels - dp(32)).coerceAtLeast(1),
+        WindowManager.LayoutParams.MATCH_PARENT,
         WindowManager.LayoutParams.WRAP_CONTENT,
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
         PixelFormat.TRANSLUCENT,
     ).apply {
-        gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        y = dp(48)
+        // Figma "Akma panel": a bottom sheet over the chat app.
+        gravity = Gravity.BOTTOM
         softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
     }
 

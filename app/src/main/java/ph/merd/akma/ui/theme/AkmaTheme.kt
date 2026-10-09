@@ -35,6 +35,8 @@ data class AkmaColors(
     val bgBrandSubtle: Color = Color(AkmaTokens.BG_BRAND_SUBTLE),
     val bgBrandMuted: Color = Color(AkmaTokens.BG_BRAND_MUTED),
     val bgSuccess: Color = Color(AkmaTokens.BG_SUCCESS),
+    val bgSuccessSubtle: Color = Color(AkmaTokens.BG_SUCCESS_SUBTLE),
+    val textSuccess: Color = Color(AkmaTokens.TEXT_SUCCESS),
     val bgScrim: Color = Color(AkmaTokens.BG_SCRIM),
     val borderDefault: Color = Color(AkmaTokens.BORDER_DEFAULT),
     val borderStrong: Color = Color(AkmaTokens.BORDER_STRONG),
@@ -62,6 +64,7 @@ private fun akmaStyle(weight: FontWeight, size: Int, lineHeight: Int, trackingPe
 @Immutable
 data class AkmaTypography(
     val display: TextStyle = akmaStyle(FontWeight.ExtraBold, 32, 40, -2.0),
+    val titleL: TextStyle = akmaStyle(FontWeight.Bold, 24, 32, -1.5),
     val titleM: TextStyle = akmaStyle(FontWeight.Bold, 20, 28, -1.0),
     val titleS: TextStyle = akmaStyle(FontWeight.Bold, 17, 24, -0.5),
     val wordmark: TextStyle = akmaStyle(FontWeight.ExtraBold, 17, 24, -0.5),

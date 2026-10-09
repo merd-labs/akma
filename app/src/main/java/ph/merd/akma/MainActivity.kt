@@ -1,43 +1,68 @@
 package ph.merd.akma
 
 import android.Manifest
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import ph.merd.akma.domain.ReplyPhase
 import ph.merd.akma.domain.ReplyTone
+import ph.merd.akma.domain.ReplyValidation
 import ph.merd.akma.overlay.OverlayService
+import ph.merd.akma.ui.AkmaScreen
+import ph.merd.akma.ui.CopyUi
+import ph.merd.akma.ui.JourneyCallbacks
+import ph.merd.akma.ui.JourneyPanel
+import ph.merd.akma.ui.ProtectedAkmaButton
+import ph.merd.akma.ui.back
+import ph.merd.akma.ui.canChooseDraft
+import ph.merd.akma.ui.canStartProcessing
+import ph.merd.akma.ui.cancelDisplayedDraft
+import ph.merd.akma.ui.cancelDisplayedProcessing
+import ph.merd.akma.ui.components.ButtonVariant
+import ph.merd.akma.ui.confirmDisplayedDraft
+import ph.merd.akma.ui.confirmationButton
+import ph.merd.akma.ui.copyButton
 import ph.merd.akma.ui.copyDraft
-import ph.merd.akma.ui.statusText
+import ph.merd.akma.ui.onboarding.HomeScreen
+import ph.merd.akma.ui.onboarding.LandingScreen
+import ph.merd.akma.ui.onboarding.SetupScreen
+import ph.merd.akma.ui.retryLocalModel
+import ph.merd.akma.ui.selectDraft
+import ph.merd.akma.ui.startScreen
+import ph.merd.akma.ui.theme.AkmaTheme
+import ph.merd.akma.ui.theme.AkmaTokens
+import ph.merd.akma.ui.toPanelUi
 
 class MainActivity : ComponentActivity() {
     private val session get() = application as AkmaApplication
@@ -51,86 +76,181 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         refreshPermissions()
         setContent {
-            val state by session.replies.state.collectAsStateWithLifecycle()
             val overlay by session.overlayStatus.collectAsStateWithLifecycle()
-            var tone by remember { mutableStateOf(ReplyTone.PROFESSIONAL) }
-            var copyError by remember { mutableStateOf(false) }
-            MaterialTheme {
-                Scaffold { contentPadding ->
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(contentPadding)
-                            .verticalScroll(rememberScrollState()).padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineLarge)
-                        Text(stringResource(R.string.tagline))
-                        Text(stringResource(R.string.workflow_intro))
-                        Text(if (overlayGranted) "Overlay permission granted" else "Permission required for overlay. Activity works without it.")
-                        if (!overlayGranted) {
-                            Button(onClick = ::requestOverlayPermission) { Text("Grant overlay permission") }
-                        }
-                        if (!notificationGranted) Text("Notifications disabled. Use Close in the overlay or Activity to end the session.")
-                        Button(onClick = ::requestOverlayStart, enabled = overlayGranted && !overlay.open) { Text("Open overlay") }
-                        Button(onClick = {
-                            stopService(Intent(this@MainActivity, OverlayService::class.java))
-                        }, enabled = overlay.open) { Text("Close overlay") }
-                        overlay.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        Text(state.statusText(), style = MaterialTheme.typography.titleMedium)
-                        state.notice?.let { Text(it) }
-                        if (state.busy) {
-                            LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Button(onClick = session.replies::cancel) { Text("Cancel") }
-                        }
-                        Button(onClick = session.replies::initialize, enabled = !state.busy) { Text("Check local model") }
-                        if (state.phase == ReplyPhase.Error) {
-                            Button(onClick = session.replies::recover) { Text("Dismiss error and retry") }
-                        }
-                        OutlinedTextField(
-                            value = state.message,
-                            onValueChange = session.replies::setMessage,
-                            label = { Text("Message — use keyboard Paste") },
-                            supportingText = { Text("${state.message.length}/1,500 characters") },
-                            enabled = !state.busy,
-                            modifier = Modifier.fillMaxWidth(),
-                            minLines = 3,
-                        )
-                        Button(
-                            onClick = session.replies::analyze,
-                            enabled = !state.busy && state.phase != ReplyPhase.ModelUnavailable,
-                        ) { Text("Analyze locally") }
-                        state.analysis?.let { analysis ->
-                            Text(analysis.summary)
-                            ReplyTone.entries.forEach { choice ->
-                                Button(onClick = { tone = choice }, enabled = !state.busy) {
-                                    Text(if (tone == choice) "Selected: ${choice.name}" else choice.name)
-                                }
+            var onboarded by remember { mutableStateOf(readFlag(KEY_ONBOARDED)) }
+            var setupDone by remember { mutableStateOf(readFlag(KEY_SETUP_DONE)) }
+            var screen by remember { mutableStateOf(startScreen(onboarded, setupDone)) }
+            LaunchedEffect(screen) { applySystemBars(screen) }
+            screen.back(setupDone)?.let { previous -> BackHandler { screen = previous } }
+            val bubbleOn = overlayGranted && overlay.open
+            val notice = overlay.error ?: if (!notificationGranted) stringResource(R.string.akma_notifications_off) else null
+            AkmaTheme {
+                when (screen) {
+                    AkmaScreen.Landing -> LandingScreen(onGetStarted = {
+                        onboarded = true
+                        writeFlag(KEY_ONBOARDED)
+                        screen = startScreen(onboarded, setupDone)
+                    })
+                    AkmaScreen.Setup -> SetupScreen(
+                        overlayGranted = overlayGranted,
+                        bubbleOn = bubbleOn,
+                        onAllow = ::requestOverlayPermission,
+                        onBubbleChange = { on ->
+                            setBubble(on)
+                            if (on) {
+                                setupDone = true
+                                writeFlag(KEY_SETUP_DONE)
+                                screen = AkmaScreen.Home
                             }
-                            analysis.actions.forEach { action ->
-                                Button(onClick = { session.replies.draft(action.id, tone) }, enabled = !state.busy) { Text(action.label) }
-                            }
-                        }
-                        if (state.phase in setOf(ReplyPhase.Editing, ReplyPhase.Copied)) {
-                            OutlinedTextField(
-                                value = state.draft,
-                                onValueChange = { copyError = false; session.replies.editDraft(it) },
-                                label = { Text("Editable draft") },
-                                modifier = Modifier.fillMaxWidth(),
-                                minLines = 3,
-                            )
-                            Button(onClick = {
-                                copyError = !copyDraft(this@MainActivity, state)
-                                if (!copyError) session.replies.copied()
-                            }, enabled = state.canCopy) { Text("Copy draft") }
-                            if (copyError) Text("Copy failed. Select the draft and copy manually.")
-                        }
-                    }
+                        },
+                        onReplyHere = { screen = AkmaScreen.Reply },
+                        notice = notice,
+                    )
+                    AkmaScreen.Home -> HomeScreen(
+                        bubbleOn = bubbleOn,
+                        onBubbleChange = ::setBubble,
+                        onReplyHere = { screen = AkmaScreen.Reply },
+                        notice = notice,
+                    )
+                    AkmaScreen.Reply -> ReplyScreen(onClose = { screen = AkmaScreen.Reply.back(setupDone) ?: AkmaScreen.Home })
                 }
             }
         }
+    }
+
+    /** The reply journey inside the Activity, for when the bubble is off or unavailable. */
+    @Composable
+    private fun ReplyScreen(onClose: () -> Unit) {
+        val state by session.replies.state.collectAsStateWithLifecycle()
+        var tone by remember { mutableStateOf(ReplyTone.PROFESSIONAL) }
+        var lastActionId by remember { mutableStateOf<String?>(null) }
+        var localNotice by remember { mutableStateOf<String?>(null) }
+        var copyError by remember { mutableStateOf(false) }
+        // Guards compare against the state this composition displayed, not a later one.
+        val displayed = state
+        val ui = displayed.toPanelUi(tone, lastActionId).let { it.copy(notice = localNotice ?: it.notice) }
+        val pasteEmpty = stringResource(R.string.akma_paste_empty)
+        val pasteTooLong = stringResource(R.string.akma_paste_too_long)
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(AkmaTheme.colors.bgSurface)
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+        ) {
+            JourneyPanel(
+                ui = ui,
+                callbacks = JourneyCallbacks(
+                    onClose = onClose,
+                    onMessageChange = { localNotice = null; session.replies.setMessage(it) },
+                    onPaste = { localNotice = pasteFromClipboard(pasteEmpty, pasteTooLong) },
+                    onAnalyze = { if (session.replies.state.value.canStartProcessing) session.replies.analyze() },
+                    onSelectAction = { id ->
+                        if (session.replies.state.value.canChooseDraft) {
+                            lastActionId = id
+                            session.replies.selectDraft(id, tone)
+                        }
+                    },
+                    onSelectTone = { if (session.replies.state.value.canChooseDraft) tone = it },
+                    onCancelConfirmation = {
+                        displayed.pendingConfirmation?.let { session.replies.cancelDisplayedDraft(it.id) }
+                        lastActionId = null
+                    },
+                    onCancelProcessing = { session.replies.cancelDisplayedProcessing(displayed) },
+                    onStartOver = {
+                        localNotice = null
+                        lastActionId = null
+                        session.replies.setMessage("")
+                    },
+                    onDraftChange = { copyError = false; session.replies.editDraft(it) },
+                    onRetry = { session.replies.retryLocalModel() },
+                    onDismissError = session.replies::recover,
+                ),
+                copyButton = { copy ->
+                    val copied = copy == CopyUi.Copied
+                    ProtectedAkmaButton(
+                        factory = { context -> copyButton(context) },
+                        text = stringResource(if (copied) R.string.akma_copied else R.string.akma_copy_reply),
+                        enabled = copy == CopyUi.Ready || copied,
+                        onClick = {
+                            copyError = !copyDraft(this@MainActivity, session.replies.state.value)
+                            if (!copyError) session.replies.copied()
+                        },
+                        variant = if (copied) ButtonVariant.Success else ButtonVariant.Primary,
+                        icon = if (copied) R.drawable.ic_akma_check else R.drawable.ic_akma_copy,
+                    )
+                    if (copyError) SecondaryText(stringResource(R.string.akma_copy_failed))
+                    else if (copied) SecondaryText(stringResource(R.string.akma_copied_hint))
+                },
+            ) { confirmation ->
+                // Replacing a token replaces its control, cancelling any in-flight tap.
+                key(confirmation.confirmationId) {
+                    ProtectedAkmaButton(
+                        factory = { context -> confirmationButton(context) },
+                        text = stringResource(R.string.akma_write_reply),
+                        enabled = confirmation.valid,
+                        onClick = { session.replies.confirmDisplayedDraft(confirmation.confirmationId) },
+                    )
+                }
+            }
+        }
+    }
+
+    /** Landing has a brand hero under the status bar, so it needs light icons; other screens are light. */
+    private fun applySystemBars(screen: AkmaScreen) {
+        val light = SystemBarStyle.light(AkmaTokens.BG_SURFACE.toInt(), AkmaTokens.TEXT_PRIMARY.toInt())
+        enableEdgeToEdge(
+            statusBarStyle = if (screen == AkmaScreen.Landing) SystemBarStyle.dark(Color.TRANSPARENT) else light,
+            navigationBarStyle = light,
+        )
+    }
+
+    /** The switch shows or hides the bubble. Without the permission, it opens the permission screen. */
+    private fun setBubble(on: Boolean) {
+        when {
+            !on -> stopService(Intent(this, OverlayService::class.java))
+            !overlayGranted -> requestOverlayPermission()
+            else -> requestOverlayStart()
+        }
+    }
+
+    private fun readFlag(key: String): Boolean = try {
+        getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(key, false)
+    } catch (_: RuntimeException) {
+        false
+    }
+
+    private fun writeFlag(key: String) {
+        try {
+            getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean(key, true) }
+        } catch (_: RuntimeException) {
+            // Losing the flag only shows Landing or Setup again on the next launch.
+        }
+    }
+
+    /** Reads the clipboard only from an explicit Paste tap while this Activity has focus. */
+    private fun pasteFromClipboard(emptyNotice: String, tooLongNotice: String): String? {
+        if (!session.replies.state.value.canStartProcessing) return null
+        val text = try {
+            getSystemService(ClipboardManager::class.java)?.primaryClip
+                ?.takeIf { it.itemCount > 0 }
+                ?.getItemAt(0)?.coerceToText(this)?.toString().orEmpty()
+        } catch (_: RuntimeException) {
+            ""
+        }
+        return when {
+            text.isBlank() -> emptyNotice
+            text.length > ReplyValidation.MAX_TEXT_LENGTH -> tooLongNotice
+            else -> { session.replies.setMessage(text); null }
+        }
+    }
+
+    @Composable
+    private fun SecondaryText(text: String) {
+        Text(text, style = AkmaTheme.type.bodyM, color = AkmaTheme.colors.textSecondary)
     }
 
     override fun onResume() {
@@ -169,5 +289,11 @@ class MainActivity : ComponentActivity() {
         } catch (_: RuntimeException) {
             session.overlayStatus.value = OverlayStatus(error = "Overlay could not start. Continue in the Activity and retry.")
         }
+    }
+
+    private companion object {
+        const val PREFS = "akma_ui"
+        const val KEY_ONBOARDED = "onboarded"
+        const val KEY_SETUP_DONE = "setup_done"
     }
 }

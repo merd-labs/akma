@@ -38,6 +38,42 @@ class PanelStateMapperTest {
         assertEquals(CopyUi.Disabled, ui.copy)
         assertNull(ui.reply)
         assertEquals(JourneyStep.Confirm, ui.step)
+        assertTrue(confirmation.valid)
+    }
+
+    @Test
+    fun pendingConfirmationLocksActionAndToneUntilCancelled() {
+        val ui = ReplyState(phase = ReplyPhase.ChoosingAction, message = "message", analysis = analysis, pendingConfirmation = pending)
+            .ui(tone = ReplyTone.FRIENDLY, selected = "something_else")
+        assertFalse(ui.choice!!.enabled)
+        assertEquals(action.id, ui.choice!!.selectedActionId)
+        assertEquals(ReplyTone.CONCISE, ui.choice!!.tone)
+        assertFalse(ui.canStartOver)
+    }
+
+    @Test
+    fun staleConfirmationCannotBeConfirmed() {
+        // The message changed after staging, so the staged request no longer matches live state.
+        val ui = ReplyState(phase = ReplyPhase.ChoosingAction, message = "edited", analysis = analysis, pendingConfirmation = pending).ui()
+        assertEquals(7L, ui.confirmation!!.confirmationId)
+        assertFalse(ui.confirmation!!.valid)
+    }
+
+    @Test
+    fun startOverAndRetryFollowCoordinatorRules() {
+        assertTrue(ReplyState(phase = ReplyPhase.Editing, message = "m", analysis = analysis, draft = "d").ui().canStartOver)
+        assertFalse(ReplyState(phase = ReplyPhase.Drafting, message = "m", analysis = analysis).ui().canStartOver)
+        assertFalse(ReplyState(phase = ReplyPhase.Ready).ui().canStartOver)
+        assertTrue(ReplyState(phase = ReplyPhase.ModelUnavailable).ui().canRetry)
+        assertTrue(ReplyState(phase = ReplyPhase.Error).ui().canRetry)
+        assertFalse(ReplyState(phase = ReplyPhase.Ready).ui().canRetry)
+    }
+
+    @Test
+    fun coordinatorNoticeIsShownVerbatimExceptAfterCopy() {
+        assertEquals("Cancelled.", ReplyState(phase = ReplyPhase.Ready, notice = "Cancelled.").ui().notice)
+        val copied = ReplyState(phase = ReplyPhase.Copied, message = "m", analysis = analysis, draft = "d", notice = "Copied. Paste and send manually.")
+        assertNull(copied.ui().notice)
     }
 
     @Test

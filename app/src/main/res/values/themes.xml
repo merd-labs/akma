@@ -3,4 +3,11 @@
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
+
+    <!-- Figma Splash (66:2449): bg/brand, Logo/Mark centered. MainActivity only; switches to Theme.Akma. -->
+    <style name="Theme.Akma.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/akma_bg_brand</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/akma_splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.Akma</item>
+    </style>
 </resources>

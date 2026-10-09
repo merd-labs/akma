@@ -30,7 +30,7 @@ import ph.merd.akma.ui.theme.AkmaTheme
 
 /** Figma "Akma panel": white sheet, 28dp top corners, handle, header, 16dp gaps. */
 @Composable
-fun AkmaPanel(onClose: () -> Unit, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+fun AkmaPanel(onClose: (() -> Unit)?, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val shape = RoundedCornerShape(topStart = AkmaRadius.xl, topEnd = AkmaRadius.xl)
     Column(
         modifier
@@ -55,9 +55,9 @@ fun AkmaPanel(onClose: () -> Unit, modifier: Modifier = Modifier, content: @Comp
     }
 }
 
-/** Figma Panel header: tile, name, on-device status, close. */
+/** Figma Panel header: tile, name, on-device status, close. A null [onClose] hides Close (Activity host). */
 @Composable
-fun PanelHeader(onClose: () -> Unit, modifier: Modifier = Modifier) {
+fun PanelHeader(onClose: (() -> Unit)?, modifier: Modifier = Modifier) {
     Row(
         modifier
             .fillMaxWidth()
@@ -69,7 +69,7 @@ fun PanelHeader(onClose: () -> Unit, modifier: Modifier = Modifier) {
         Text(stringResource(R.string.app_name), style = AkmaTheme.type.wordmark, color = AkmaTheme.colors.textPrimary)
         AkmaTag(stringResource(R.string.akma_on_device), TagVariant.Brand, icon = R.drawable.ic_akma_lock)
         Spacer(Modifier.weight(1f))
-        CircleIconButton(R.drawable.ic_akma_close, stringResource(R.string.akma_close), onClose)
+        if (onClose != null) CircleIconButton(R.drawable.ic_akma_close, stringResource(R.string.akma_close), onClose)
     }
 }
 

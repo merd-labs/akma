@@ -33,4 +33,11 @@ jobs:
             echo '::error::Android baseline or Gradle wrapper is incomplete.'
             exit 1
           fi
-          ./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+          ./gradlew --no-daemon :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest :app:testReleaseUnitTest :app:lintDebug :app:lintRelease
+      - name: Merged manifest security guard
+        shell: bash
+        run: |
+          java scripts/security/ManifestGuard.java --policy scripts/security/manifest-policy.txt \
+            app/build/intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml
+          java scripts/security/ManifestGuard.java --release --policy scripts/security/manifest-policy.txt \
+            app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml

@@ -77,7 +77,7 @@ fun AkmaTag(text: String, variant: TagVariant, modifier: Modifier = Modifier, @D
     val (bg, fg) = when (variant) {
         TagVariant.Brand -> colors.bgBrandMuted to colors.textBrandStrong
         TagVariant.Neutral -> colors.bgSubtle to colors.textSecondary
-        TagVariant.Success -> colors.bgSuccess to colors.textOnBrand
+        TagVariant.Success -> colors.bgSuccessSubtle to colors.textSuccess
     }
     Row(
         modifier

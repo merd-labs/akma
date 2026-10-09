@@ -39,6 +39,9 @@ import ph.merd.akma.ui.components.WriteReplyButton
 import ph.merd.akma.ui.theme.AkmaSpacing
 import ph.merd.akma.ui.theme.AkmaTheme
 import ph.merd.akma.ui.toPanelUi
+import ph.merd.akma.ui.onboarding.HomeScreen
+import ph.merd.akma.ui.onboarding.LandingScreen
+import ph.merd.akma.ui.onboarding.SetupScreen
 
 // Previews show sample text only, always under PreviewBadge. Sizes: Figma 360x800, tall 20:9, large font.
 
@@ -188,3 +191,25 @@ private fun PartsPreview() {
         }
     }
 }
+
+// Figma first launch and setup (22:253). Landing's hero is the fixed product illustration.
+
+@Preview(name = "Landing (66:2472)", widthDp = 360, heightDp = 800)
+@Composable
+private fun LandingPreview() = AkmaTheme { LandingScreen(onGetStarted = {}) }
+
+@Preview(name = "Setup, not allowed (22:275)", widthDp = 360, heightDp = 800)
+@Composable
+private fun SetupNotAllowedPreview() = AkmaTheme { SetupScreen(overlayGranted = false, bubbleOn = false, onAllow = {}, onBubbleChange = {}, onReplyHere = {}) }
+
+@Preview(name = "Setup, allowed", widthDp = 360, heightDp = 800)
+@Composable
+private fun SetupAllowedPreview() = AkmaTheme { SetupScreen(overlayGranted = true, bubbleOn = false, onAllow = {}, onBubbleChange = {}, onReplyHere = {}) }
+
+@Preview(name = "Akma is on (22:332)", widthDp = 360, heightDp = 800)
+@Composable
+private fun HomeOnPreview() = AkmaTheme { HomeScreen(bubbleOn = true, onBubbleChange = {}, onReplyHere = {}) }
+
+@Preview(name = "Akma is off", widthDp = 360, heightDp = 800, fontScale = 1.3f)
+@Composable
+private fun HomeOffPreview() = AkmaTheme { HomeScreen(bubbleOn = false, onBubbleChange = {}, onReplyHere = {}) }

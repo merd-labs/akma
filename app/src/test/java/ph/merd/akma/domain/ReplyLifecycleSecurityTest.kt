@@ -299,7 +299,7 @@ class ReplyLifecycleSecurityTest {
     }
 
     @Test
-    fun nonCooperativeDraftTimeoutPublishesErrorOnlyAfterNativeWorkReturns() = runTest {
+    fun nonCooperativeDraftTimeoutPublishesErrorBeforeNativeWorkReturns() = runTest {
         val engine = Engine()
         val replies = choosing(engine, timeout = 100)
         engine.draftDelay = 300
@@ -308,6 +308,8 @@ class ReplyLifecycleSecurityTest {
         runCurrent()
         advanceTimeBy(101)
         runCurrent()
+        assertEquals(ReplyPhase.Error, replies.state.value.phase)
+        assertFalse(replies.state.value.busy)
         assertFalse(replies.state.value.canCopy)
         assertEquals("", replies.state.value.draft)
         advanceUntilIdle()
