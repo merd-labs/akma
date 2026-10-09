@@ -33,7 +33,7 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
     private val notice = label("")
     private val progress = ProgressBar(context)
     private val cancel = button("Cancel", replies::cancel)
-    private val check = button("Check local model", replies::initialize)
+    private val check = button("Retry local model", replies::initialize)
     private val recover = button("Dismiss error and retry", replies::recover)
     private val message = input("Message — tap Paste message", replies::setMessage)
     private val paste = button("Paste message") {
@@ -99,6 +99,7 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
             progress.visibility = if (state.busy) VISIBLE else GONE
             cancel.visibility = if (state.busy) VISIBLE else GONE
             check.isEnabled = !state.busy
+            check.visibility = if (state.phase in setOf(ReplyPhase.ModelUnavailable, ReplyPhase.Error)) VISIBLE else GONE
             recover.visibility = if (state.phase == ReplyPhase.Error) VISIBLE else GONE
             message.isEnabled = !state.busy
             paste.isEnabled = !state.busy
@@ -112,7 +113,7 @@ class OverlayPanel(context: Context, private val replies: ReplyCoordinator, clos
                 state.analysis?.let { analysis ->
                     actions.addView(label(analysis.summary))
                     analysis.actions.forEach { action ->
-                        actions.addView(button(action.label) { replies.draft(action.id, ReplyTone.entries[tone.selectedItemPosition]) })
+                        actions.addView(button(action.label) { replies.selectAction(action.id, ReplyTone.entries[tone.selectedItemPosition]) })
                     }
                 }
             }
