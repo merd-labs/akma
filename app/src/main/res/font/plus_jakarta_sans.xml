@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plus Jakarta Sans (SIL OFL 1.1, see assets/licenses/plus_jakarta_sans_OFL.txt). For Android Views; Compose uses AkmaFontFamily. -->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UnusedResources">
+    <font android:font="@font/plus_jakarta_sans_regular" android:fontStyle="normal" android:fontWeight="400" />
+    <font android:font="@font/plus_jakarta_sans_medium" android:fontStyle="normal" android:fontWeight="500" />
+    <font android:font="@font/plus_jakarta_sans_semibold" android:fontStyle="normal" android:fontWeight="600" />
+    <font android:font="@font/plus_jakarta_sans_bold" android:fontStyle="normal" android:fontWeight="700" />
+    <font android:font="@font/plus_jakarta_sans_extrabold" android:fontStyle="normal" android:fontWeight="800" />
+</font-family>

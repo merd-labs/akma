@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only. androidx.compose.ui:ui-tooling (debugImplementation, for @Preview rendering) merges an
+  exported PreviewActivity. Keep it unexported so the debug APK meets scripts/security/manifest-policy.txt.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <activity
+            android:name="androidx.compose.ui.tooling.PreviewActivity"
+            android:exported="false"
+            tools:replace="android:exported" />
+    </application>
+</manifest>
