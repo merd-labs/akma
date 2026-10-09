@@ -74,6 +74,31 @@ class ReplyCoordinatorTest {
     }
 
     @Test
+    fun actionTapStagesDraftUntilSeparateConfirmation() = runTest {
+        val engine = FixtureEngine()
+        val replies = ReplyCoordinator(engine, this, StandardTestDispatcher(testScheduler))
+        replies.initialize()
+        advanceUntilIdle()
+        replies.setMessage("Synthetic invitation")
+        replies.analyze()
+        advanceUntilIdle()
+
+        replies.draft("reschedule", ReplyTone.PROFESSIONAL)
+        val pending = requireNotNull(replies.state.value.pendingConfirmation)
+        replies.draft("reschedule", ReplyTone.PROFESSIONAL)
+        advanceUntilIdle()
+        assertEquals(ReplyPhase.ChoosingAction, replies.state.value.phase)
+        assertEquals(0, engine.drafts)
+        assertEquals(pending, replies.state.value.pendingConfirmation)
+
+        replies.confirmDraft(pending.id)
+        advanceUntilIdle()
+        assertEquals(ReplyPhase.Editing, replies.state.value.phase)
+        assertEquals("Synthetic test draft", replies.state.value.draft)
+        assertEquals(1, engine.drafts)
+    }
+
+    @Test
     fun duplicateClicksDoNotStartMoreEngineCalls() = runTest {
         val engine = FixtureEngine().apply { analysisDelay = 100 }
         val replies = ReplyCoordinator(engine, this, StandardTestDispatcher(testScheduler))

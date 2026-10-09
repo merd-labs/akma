@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 class ManifestGuardTest {
     private data class Run(val exit: Int, val stdout: String, val stderr: String)
 
-    private val repoRoot: File = generateSequence(File(System.getProperty("user.dir")).absoluteFile) { it.parentFile }
+    private val repoRoot: File = generateSequence(File(requireNotNull(System.getProperty("user.dir"))).absoluteFile) { it.parentFile }
         .take(4).firstOrNull { File(it, "scripts/security/ManifestGuard.java").isFile }
         ?: error("scripts/security/ManifestGuard.java not found above ${System.getProperty("user.dir")}")
     private val policy = File(repoRoot, "scripts/security/manifest-policy.txt")
@@ -22,8 +22,8 @@ class ManifestGuardTest {
         .readBytes().toString(Charsets.UTF_8)
 
     private fun javaBinary(): String {
-        val exe = if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) "java.exe" else "java"
-        return File(System.getProperty("java.home"), "bin/$exe").path
+        val exe = if (System.getProperty("os.name", "").startsWith("Windows", ignoreCase = true)) "java.exe" else "java"
+        return File(requireNotNull(System.getProperty("java.home")), "bin/$exe").path
     }
 
     private fun guard(vararg args: String): Run {
