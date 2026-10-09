@@ -38,7 +38,7 @@ Collected metrics:
 
 - Android API, release, primary ABI, and sanitized model name.
 - `MemTotal` and `MemAvailable` from `/proc/meminfo`, in KiB. These are system readings, not a claim about exact installed physical RAM.
-- Free `/data` space from `df -k`, in KiB. This is distinct from marketed storage capacity.
+- Free `/data` space from `df -k`, in KiB. The Pova 2 OEM output can label the queried filesystem `/data/user/0`; both mount labels are accepted. This is distinct from marketed storage capacity.
 - Battery temperature in tenths of degrees Celsius and Android thermal status, where exposed. Battery temperature is not CPU/GPU temperature.
 - App total PSS from package-specific `dumpsys meminfo`, in KiB, where available. A snapshot is not peak memory; it cannot establish no memory pressure between samples.
 

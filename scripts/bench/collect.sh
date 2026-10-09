@@ -88,7 +88,7 @@ query shell cat /proc/meminfo
 integer_row mem_total "$(awk '$1 == "MemTotal:" && $3 == "kB" {print $2; exit}' <<< "$RAW")" KiB
 integer_row mem_available "$(awk '$1 == "MemAvailable:" && $3 == "kB" {print $2; exit}' <<< "$RAW")" KiB
 query shell df -k /data
-integer_row data_available "$(awk '$NF == "/data" {print $(NF-2); exit}' <<< "$RAW")" KiB
+integer_row data_available "$(awk '$NF == "/data" || $NF == "/data/user/0" {print $(NF-2); exit}' <<< "$RAW")" KiB
 query shell dumpsys battery
 integer_row battery_temperature "$(awk '$1 == "temperature:" {print $2; exit}' <<< "$RAW")" deciC
 query shell dumpsys thermalservice

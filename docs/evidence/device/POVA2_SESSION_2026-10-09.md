@@ -1,6 +1,6 @@
 # Pova 2 QA session — 2026-10-09
 
-**Session status: waiting for exclusive handoff and a confirmed model-enabled APK.** No physical handset shell commands, installation, launch, setting changes, or generation have been performed in this session. All handset measurements below remain unmeasured.
+**Historical preflight: waiting for exclusive handoff and a confirmed model-enabled APK.** No physical handset operations occurred during this earlier session. The later [physical QA report](POVA2_PHYSICAL_2026-10-09.md) supersedes its handset availability and measurement gaps; inference remains untested.
 
 ## Observations and coordination
 

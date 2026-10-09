@@ -8,7 +8,7 @@ Status: **NOT RUN**. Copy this template for each tested handset. Fill only obser
 - Handset physically confirmed by:
 - Expected hardware (team-reported, not measurements): Pova 2 Android 11 / API 30 / Helio G85 / 6 GB / 128 GB; Zero 5G Android 11; Camon 30 Android 14.
 - Operator / date / time zone:
-- Elijah's exclusive-slot agreement / start / release:
+- Miguel's exclusive-slot agreement / Elijah and Secondary stopped / start / release:
 - No concurrent inference or Gradle build confirmed by:
 - App package / version / build Git SHA:
 - APK SHA-256 (if recorded):
@@ -37,16 +37,17 @@ Use reviewed TSV evidence. Do not put raw ADB output here.
 
 Use a stopwatch for visible timings or cite real runtime instrumentation. Include timing boundaries and resolution. Separate app startup, model initialization, analysis, and generation. Record process-cold versus unconfirmed process state; filesystem caches remain uncontrolled.
 
-Synthetic fixture: “Are you free Friday at 10?” Select **Reschedule**, **Professional**. Expected behavior: request an alternative without inventing availability. A fixture is input, never a prerecorded AI response. Record quality observations without copying personal chats.
+Use equivalent synthetic HR invitations in English, Filipino, and Taglish. Select **Reschedule**, **Professional** for each. Expected behavior: request an alternative without inventing availability. Keep exact prompts and genuine replies in private artifacts outside Git; commit fixture IDs, output hashes, and fidelity findings. A fixture is input, never a prerecorded AI response.
 
-| Attempt | Process/cache state | App startup ms | Model load ms | Analysis ms | First token ms | Generation ms | Output tokens / tokens per second | Result / evidence |
-|---|---|---|---|---|---|---|---|---|
-| Cold | NOT CONFIRMED | NOT MEASURED | NOT MEASURED | NOT MEASURED | NOT MEASURABLE | NOT MEASURED | NOT MEASURABLE | NOT RUN |
-| Warm 1 | | | | | | | | NOT RUN |
-| Warm 2 | | | | | | | | NOT RUN |
-| Warm 3 | | | | | | | | NOT RUN |
+| Attempt / language | Process/cache state | App startup ms | Model load ms | Analysis ms | First token ms | Generation ms | Output tokens / tokens per second | Exact action / tone / private output hash | Gate |
+|---|---|---|---|---|---|---|---|---|---|
+| Initial / English | NOT CONFIRMED | NOT MEASURED | NOT MEASURED | NOT MEASURED | NOT MEASURABLE | NOT MEASURED | NOT MEASURABLE | Reschedule / Professional / NOT RECORDED | NOT TESTED |
+| Warm 1 / English | | | | | | | | Reschedule / Professional / NOT RECORDED | NOT TESTED |
+| Warm 2 / Filipino | | | | | | | | Reschedule / Professional / NOT RECORDED | NOT TESTED |
+| Warm 3 / Taglish | | | | | | | | Reschedule / Professional / NOT RECORDED | NOT TESTED |
 
 - Timing method / exact boundaries / resolution:
+- Airplane mode / Wi-Fi / all-SIM mobile data / alternate network checks before and after:
 - First-token and token-count source, or reason unavailable:
 - Generation-total definition (include/exclude analysis and prompt processing):
 - Output intent fidelity / invented facts / responsiveness:

@@ -52,6 +52,8 @@ if mode == "missing":
     data["shell dumpsys meminfo ph.merd.akma"] = "No process found for: ph.merd.akma"
 if mode == "legacy":
     data["shell dumpsys meminfo ph.merd.akma"] = " TOTAL 123456 0 0\nPRIVATE_SENTINEL_NEVER_SAVE"
+if mode == "oem-mount":
+    data["shell df -k /data"] = "Filesystem 1K-blocks Used Available Use% Mounted on\n/dev/block/test 100000000 20000000 80000000 20% /data/user/0\nPRIVATE_SENTINEL_NEVER_SAVE"
 if command not in data:
     sys.exit(92)
 print(data[command])
@@ -127,7 +129,7 @@ class CollectorChecks(unittest.TestCase):
                     "data_available": "80000000", "battery_temperature": "315",
                     "thermal_status": "0", "app_total_pss": "123456"}
         for host in self.hosts:
-            for mode in ("normal", "legacy"):
+            for mode in ("normal", "legacy", "oem-mount"):
                 with self.subTest(host=host, mode=mode):
                     self.output.unlink(missing_ok=True)
                     result = self.run_collector(host, mode)

@@ -106,7 +106,7 @@ $Query = Invoke-Adb @('shell', 'df', '-k', '/data')
 $Value = ''
 foreach ($Line in $Query.Raw.Split("`n")) {
     $Fields = $Line.Trim() -split '\s+'
-    if ($Fields.Count -ge 6 -and $Fields[-1] -eq '/data') { $Value = $Fields[-3]; break }
+    if ($Fields.Count -ge 6 -and $Fields[-1] -in @('/data', '/data/user/0')) { $Value = $Fields[-3]; break }
 }
 Add-Integer 'data_available' $Value 'KiB' $Query.Status
 $Query = Invoke-Adb @('shell', 'dumpsys', 'battery')
