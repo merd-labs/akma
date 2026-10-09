@@ -17,6 +17,8 @@ Observed at 2026-10-09 18:19:53 UTC (2026-10-10 02:19:53 PHT):
 
 At 18:28:05 UTC, the installed baseline process reported TOTAL PSS 32,197 kB, TOTAL RSS 115,116 kB and TOTAL SWAP PSS 148 kB. Thermal status was 0; battery temperature was 29.0 °C. These are baseline snapshots, not model-inference memory or peak measurements. Android memory labels above preserve the command's reported kB units.
 
+At 18:40–18:43 UTC, the offline radio gate became PASS: airplane mode 1, Wi-Fi setting 0 and Wi-Fi service disabled; the selected default subscription mobile-data preference was 0, with all observed data-connection states 0. Read-only Bash and PowerShell probes both returned PASS on the physical device. Android 11 retained legacy global `mobile_data=1`; the default subscription preference is the relevant setting. Subscription identifiers are not printed. Standard `svc wifi disable` and `svc data disable` returned exit code 0 after the user enabled airplane mode. This verifies radio state, not inference.
+
 ## Installed APK identity
 
 Read from the device at 18:28:50 UTC, without installing or launching a replacement:
@@ -28,11 +30,11 @@ Read from the device at 18:28:50 UTC, without installing or launching a replacem
 
 ## Model and release gates
 
-PR #26 head `ae7f0946c6a6be26fd159650900da6769eb81008` pins the Qwen filename/revision/size/SHA documented in `docs/model-provisioning/INTEGRATION.md`. The published pinned artifact SHA matches the owner metadata. That metadata check is PASS; downloaded-byte verification is a separate gate. An existing host partial file measured 853,168,128 bytes, so it failed the expected 1,597,931,520-byte size check and was not used. A separate private download was started; no weights are committed.
+PR #26 head `ae7f0946c6a6be26fd159650900da6769eb81008` pins the Qwen filename/revision/size/SHA documented in `docs/model-provisioning/INTEGRATION.md`. The published pinned artifact SHA matches the owner metadata. That metadata check is PASS; downloaded-byte verification is a separate gate. An existing host partial file measured 853,168,128 bytes, so it failed the expected 1,597,931,520-byte size check and was not used. A separate private download was started. At 18:43 UTC, a complete existing host download was copied into private staging and independently verified by the JDK17 streaming verifier: exact size, LITERTLM header and trusted SHA all PASS. The duplicate owned download was stopped and only its own partial file removed. No weights are committed.
 
 | Gate | Result | Evidence or gap |
 | --- | --- | --- |
-| Downloaded complete model integrity | NOT TESTED | Download pending full size/header/SHA validation |
+| Downloaded complete model integrity | PASS | 1,597,931,520 bytes; header LITERTLM; SHA matches owner pin |
 | Exact combined APK embedded model integrity | NOT TESTED | Integration owner has not supplied a frozen model-enabled APK |
 | Exact combined APK install/launch on API 30 | NOT TESTED | Current observed APK is the baseline above |
 | Physical model provisioning and native loading | NOT TESTED | Requires the combined artifact |
@@ -51,3 +53,18 @@ Use the pinned metadata and JDK 17 Bash/PowerShell commands in `docs/model-provi
 Measure total startup plus provisioning/hash/native initialization separately. Record response latency and PSS snapshots with timestamps; do not infer first-token latency or tokens/s from character counts. Capture only sanitized errors and measurements. Keep actual synthetic prompts, chosen action/tone and generated outputs in private evidence; commit fidelity findings without content. No GPU or 4 GB compatibility claim is supported.
 
 Primary owns the combined adapter/Gradle/UI bridge; the domain reliability owner owns runtime recovery. Quaternary owns provisioning, artifact tooling and physical measurements. No owner engine/UI/coordinator/manifest/Gradle file is changed by this evidence branch. No reviewers are assigned and no merge is performed.
+
+## Owned implementation checks
+
+PR #22 implementation commit `e34a6d31b98e81982bc48383a0271376c76760b2` passed:
+
+```text
+JAVA_HOME=<JDK17> ANDROID_HOME=<SDK> ./gradlew --no-daemon --max-workers=2 -Pkotlin.compiler.execution.strategy=in-process :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
+BUILD SUCCESSFUL in 15m 16s
+144 tests; 0 failures, 0 errors, 0 skipped
+Lint: 0 errors; 16 existing warnings; 0 provisioning findings
+```
+
+The eight new bundled-store fixture tests cover original-path reuse, corruption repair, failed replacement preserving a valid model, unchanged-identity reuse, restart verification, same-size corruption with changed ctime, missing-stat fallback, explicit invalidation and mutation during verification. Fixtures never represent inference success. Thirteen JDK17 release-verifier cases passed; Bash syntax/help and PowerShell help passed on Ubuntu. Both release-verifier launchers were exercised on local fixture paths without printing them.
+
+Both push and PR hosted Android/documentation checks PASS on `e34a6d3`: [push CI](https://github.com/merd-labs/akma/actions/runs/37974268558), [PR CI](https://github.com/merd-labs/akma/actions/runs/37974275057). The accepted combination is being built by Primary in [PR #27](https://github.com/merd-labs/akma/pull/27), which incorporates this provisioning seam. These CI runs have no committed model weights and are not physical-inference evidence.
