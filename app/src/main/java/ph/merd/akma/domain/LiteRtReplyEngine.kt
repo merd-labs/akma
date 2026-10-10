@@ -1,5 +1,6 @@
 package ph.merd.akma.domain
 
+import android.app.ActivityManager
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
@@ -41,12 +42,16 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
 
     override suspend fun initialize(): Result<Unit> = guarded {
         runtime.invalidate().getOrThrow()
+        val provisioning = SystemClock.elapsedRealtime()
         val model = when (val result = provisioner.ensureBundledModel(LocalModelArtifact.spec)) {
             is ModelProvisionResult.Verified -> result.model.file
             is ModelProvisionResult.Failure -> throw LocalModelProvisioningException(result.reason)
         }
         currentCoroutineContext().ensureActive()
         val started = SystemClock.elapsedRealtime()
+        // Durations and memory only: no paths, no user text. These are the numbers the device docs still lack.
+        val memory = ActivityManager.MemoryInfo().also { app.getSystemService(ActivityManager::class.java)?.getMemoryInfo(it) }
+        Log.i(TAG, "provision_ms=${started - provisioning} avail_mb=${memory.availMem shr 20} total_mb=${memory.totalMem shr 20}")
         val loaded = Engine(EngineConfig(modelPath = model.absolutePath, backend = Backend.CPU(), cacheDir = app.cacheDir.absolutePath))
         runtime.install(loaded)
         try {

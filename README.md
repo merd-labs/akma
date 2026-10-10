@@ -61,10 +61,26 @@ No APK or model weights are committed (the `.litertlm` asset is git-ignored and 
 1. JDK 17 and the checked-in wrapper: `./gradlew :app:assembleRelease` (the **release** variant runs the real engine; **debug** uses a labelled demo engine). Sign it for your test device (the release variant has no signing config) and `adb install -r` it.
 2. Download `gemma-4-E2B-it.litertlm` (2,588,147,712 bytes, SHA-256 `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c`) from [litert-community/gemma-4-E2B-it-litert-lm](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm) and verify the hash. It is too large to bundle in an APK.
 3. Open Akma once, then sideload: `adb shell mkdir -p /sdcard/Android/data/ph.merd.akma/files/models && adb push gemma-4-E2B-it.litertlm /sdcard/Android/data/ph.merd.akma/files/models/`.
-4. In Akma choose **Reply here instead** (or turn the bubble on). If the first model check ran before the push, tap **Try again**. The first load copies and verifies the 2.6 GB file; keep about 5.4 GB free on the phone.
+4. In Akma choose **Reply here instead** (or turn the bubble on). If the first model check ran before the push, tap **Try again**. The first load copies and verifies the 2.6 GB file; keep about 5.2 GB free on the phone until the copy finishes.
 5. Paste a message, **Read message**, pick an action (you can switch action or tone until you confirm), **Write reply**, edit, **Copy reply**.
 
-Details: [docs/model-provisioning/INTEGRATION.md](docs/model-provisioning/INTEGRATION.md). Verify with `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:compileReleaseKotlin` (417 JVM tests, synthetic engine).
+**Storage:** the 2.6 GB file is copied into the app's private storage and verified (SHA-256), then the sideloaded source is deleted, so the first load needs about 5.2 GB free and a phone keeps about 2.6 GB afterwards. If the model is missing or fails verification the app says "Model file not found. Copy gemma-4-E2B-it.litertlm into this app's models folder..." and **Try again** re-runs the check.
+
+**Device log for measurements:** `adb logcat -d | grep AkmaInference` shows `provision_ms`, `avail_mb`/`total_mb`, `model_initialized_ms` and per-draft `generation_ms` (durations and sizes only, no message text).
+
+Details: [docs/model-provisioning/INTEGRATION.md](docs/model-provisioning/INTEGRATION.md). Verify with `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:compileReleaseKotlin` (420 JVM tests, synthetic engine).
+
+## Target devices
+
+Full team-reported specs and per-phone risks: [docs/DEVICE_MATRIX.md](docs/DEVICE_MATRIX.md).
+
+| Phone | SoC / RAM / storage | Gemma 4 E2B |
+|---|---|---|
+| Tecno Pova 2 (LE7), Android 11, HiOS 7.6 (worst case, design for 4 GB) | Helio G85 (2x A75 + 6x A55), 4/6 GB, eMMC 5.1, 60 Hz | **NOT TESTED** |
+| Infinix Zero 5G (X6815B), Android 11 stated, unit reported 12, XOS 10 | Dimensity 900 (2x A78 + 6x A55), 8 GB, UFS 3.1, 120 Hz | **Partial:** 5 offline drafts, 4.8-7.4 s ([evidence](docs/evidence/device/zero5g-2026-10-10.md)) |
+| Tecno Camon 30 (CL6), Android 14 / API 34 stated, HiOS 14 | Helio G99 Ultimate (2x A76 + 6x A55), 8 GB, UFS 2.2, 120 Hz | **NOT TESTED** |
+
+Pova 2 and Camon 30 have not run this model; the matrix lists the spec-derived risks (4 GB RAM and slow eMMC on the Pova 2, Android 14 service rules on the Camon 30). Treat them as unverified until someone records a run.
 
 ## 🧠 Model Integration Status
 

@@ -23,6 +23,7 @@ Based on desktop verification (PR #16), we tested Python LiteRT-LM prompt labs f
 - **Artifact:** `gemma-4-E2B-it.litertlm`, [litert-community/gemma-4-E2B-it-litert-lm](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm) rev `b3ca0d2f076785a8f4b2219ddbd2bdb99954eae1`, 2,588,147,712 bytes, SHA-256 `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c`, Apache-2.0 per the model card. Sideloaded (above the 2 GiB APK asset limit).
 - **Desktop gate (PASS, provisional):** 19 synthetic cases, LiteRT-LM 0.18.0 CPU: about 13 of 14 Filipino/Taglish drafts coherent and on-intent, mean 6.9 s versus 26.7 s for Qwen3-1.7B on the same machine; injection cases did not commit. Raw outputs and caveats: [gemma4-e2b-filipino-gate.md](evidence/gemma4-e2b-filipino-gate.md). Needs review by a Filipino speaker.
 - **Device (Infinix Zero 5G, Android 12 / API 31):** 5 offline generations, 4.8-7.4 s, PSS about 1.5 GB post-run, no crash; option switching verified. Details and gaps: [device/zero5g-2026-10-10.md](evidence/device/zero5g-2026-10-10.md).
+- **Spec-derived readiness for Pova 2 (4 GB worst case), Zero 5G and Camon 30:** [DEVICE_MATRIX.md](DEVICE_MATRIX.md).
 - **Still NOT TESTED:** Pova 2 and Camon 30 with this model, model init time, peak memory, thermals, overlay, native-speaker quality review.
 
 ## 📱 Physical Android Integration (Status: PARTIAL — Camon 30 only; Pova 2 acceptance gate still OPEN)

@@ -47,3 +47,9 @@ bash scripts/bench/collect.sh --serial <PRIVATE_SERIAL> --device camon30 --phase
 ```
 
 Then follow "Manual benchmark" in [scripts/bench/README.md](../../../scripts/bench/README.md) and copy [TEMPLATE.md](TEMPLATE.md). Commit only the reviewed TSV; never serials, raw ADB output, messages or weights.
+
+## Team-reported specification (2026-10-10, not measured)
+
+Android 14 / HiOS 14 (target API 34; foreground-service types, runtime receiver registration and granular media permissions matter), MediaTek Helio G99 Ultimate 6 nm (2x A76 @ 2.2 GHz + 6x A55 @ 2.0 GHz), Mali-G57 MC2, 8 or 12 GB LPDDR4X (8 GB floor), 256 GB UFS 2.2, 6.78" AMOLED 1080x2436 at 120 Hz with a punch-hole, 5,000 mAh with 70 W charging, HiOS app freezing and strict battery policy.
+
+**Gemma 4 E2B on this phone: NOT TESTED.** See the readiness table in [DEVICE_MATRIX.md](../../DEVICE_MATRIX.md).

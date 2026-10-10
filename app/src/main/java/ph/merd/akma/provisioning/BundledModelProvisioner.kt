@@ -32,6 +32,27 @@ internal fun openModelSource(spec: ModelArtifactSpec, asset: () -> InputStream?,
     }
 }
 
+/**
+ * After a verified, newly published copy, the sideloaded source is no longer needed: delete it so a phone keeps one
+ * 2.6 GB copy instead of two. Never touches a bundled asset, a reused copy, or a failed import (the user keeps the
+ * source to retry). Best effort: returns false if nothing was deleted.
+ */
+internal fun consumeSideloadedSource(
+    spec: ModelArtifactSpec,
+    sideloadDir: File?,
+    assetUsed: Boolean,
+    result: ModelProvisionResult,
+): Boolean {
+    if (assetUsed || sideloadDir == null) return false
+    if (result !is ModelProvisionResult.Verified || result.model.reused) return false
+    val file = File(File(sideloadDir, "models"), spec.filename)
+    return try {
+        file.isFile && file.delete()
+    } catch (_: SecurityException) {
+        false
+    }
+}
+
 /** Automatic local provisioning (asset or adb sideload); no picker, downloads, or broad storage permissions. */
 class BundledModelProvisioner(context: Context) {
     private val application = context.applicationContext
@@ -65,20 +86,25 @@ class BundledModelProvisioner(context: Context) {
     )
 
     /** Keep this instance for the engine lifetime. Close native engine before repair/replacement. */
-    suspend fun ensureBundledModel(spec: ModelArtifactSpec): ModelProvisionResult =
-        store.importFromStream(spec) {
+    suspend fun ensureBundledModel(spec: ModelArtifactSpec): ModelProvisionResult {
+        val sideloadDir = application.getExternalFilesDir(null)
+        var assetUsed = false
+        val result = store.importFromStream(spec) {
             openModelSource(
                 spec,
                 asset = {
                     try {
-                        application.assets.open(spec.filename)
+                        application.assets.open(spec.filename).also { assetUsed = true }
                     } catch (_: FileNotFoundException) {
                         null
                     }
                 },
-                sideloadDir = application.getExternalFilesDir(null),
+                sideloadDir = sideloadDir,
             )
         }
+        consumeSideloadedSource(spec, sideloadDir, assetUsed, result)
+        return result
+    }
 
     suspend fun invalidateVerification() = store.invalidateVerification()
 }
