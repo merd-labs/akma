@@ -44,3 +44,19 @@ class LocalModelProvisioningFailureTest {
         }
     }
 }
+
+/** The model is sideloaded, so notices must tell the user to copy the file, not to reinstall an APK. */
+class SideloadNoticeTest {
+    @Test fun missingAndCorruptNoticesPointToTheModelFileNotAnApk() {
+        listOf(ProvisionFailure.MODEL_MISSING, ProvisionFailure.SOURCE_NOT_FOUND).forEach {
+            val notice = LocalModelProvisioningException(it).userNotice
+            assertTrue(notice, notice.contains("gemma-4-E2B-it.litertlm") && notice.contains("Try again"))
+            assertFalse(notice, notice.contains("APK") || notice.contains("bundled"))
+        }
+        listOf(ProvisionFailure.SIZE_MISMATCH, ProvisionFailure.HASH_MISMATCH, ProvisionFailure.FORMAT_MISMATCH).forEach {
+            val notice = LocalModelProvisioningException(it).userNotice
+            assertTrue(notice, notice.contains("Copy it again"))
+            assertFalse(notice, notice.contains("bundled") || notice.contains("Reinstall"))
+        }
+    }
+}

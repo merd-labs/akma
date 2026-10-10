@@ -3,6 +3,8 @@ package ph.merd.akma.provisioning
 import java.io.ByteArrayInputStream
 import java.io.File
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Rule
@@ -57,5 +59,25 @@ class ModelSourceTest {
             ModelProvisionResult.Failure(ProvisionFailure.HASH_MISMATCH),
             other.importFromStream(real) { openModelSource(real, { null }, dir) },
         )
+    }
+
+    private fun verified(reused: Boolean): ModelProvisionResult =
+        ModelProvisionResult.Verified(VerifiedModel(File(temporary.root, "files/models/side.litertlm"), spec, reused))
+
+    @Test fun sideloadedSourceIsDeletedAfterANewVerifiedCopy() {
+        val dir = sideload()
+        val source = File(dir, "models/side.litertlm").apply { writeBytes(bytes) }
+        assertTrue(consumeSideloadedSource(spec, dir, assetUsed = false, result = verified(reused = false)))
+        assertFalse(source.exists())
+    }
+
+    @Test fun sideloadedSourceIsKeptWhenNothingNewWasPublishedOrTheImportFailed() {
+        val dir = sideload()
+        val source = File(dir, "models/side.litertlm").apply { writeBytes(bytes) }
+        assertFalse(consumeSideloadedSource(spec, dir, assetUsed = false, result = verified(reused = true)))
+        assertFalse(consumeSideloadedSource(spec, dir, assetUsed = false, result = ModelProvisionResult.Failure(ProvisionFailure.HASH_MISMATCH)))
+        assertFalse(consumeSideloadedSource(spec, dir, assetUsed = true, result = verified(reused = false)))
+        assertFalse(consumeSideloadedSource(spec, null, assetUsed = false, result = verified(reused = false)))
+        assertTrue(source.exists())
     }
 }

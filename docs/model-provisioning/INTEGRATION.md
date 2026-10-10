@@ -30,7 +30,7 @@ adb shell mkdir -p /sdcard/Android/data/ph.merd.akma/files/models
 adb push gemma-4-E2B-it.litertlm /sdcard/Android/data/ph.merd.akma/files/models/
 ```
 
-On first model check the app copies it to `filesDir/models` through the same size/header/SHA-256 verification (needs about 2.6 GB plus the 256 MiB reserve free), and later runs reuse that copy. A wrong or truncated push fails as a typed provisioning error and nothing is published. The pushed file is left in place; remove it manually to reclaim space. App-scoped external storage needs no permission on API 30.
+On first model check the app copies it to `filesDir/models` (and, after a verified new copy, deletes the sideloaded source so only one 2.6 GB copy remains; a failed or reused import keeps the source) through the same size/header/SHA-256 verification (needs about 2.6 GB plus the 256 MiB reserve free), and later runs reuse that copy. A wrong or truncated push fails as a typed provisioning error and nothing is published. The pushed file is left in place; remove it manually to reclaim space. App-scoped external storage needs no permission on API 30.
 
 
 ## Integrity and recovery
