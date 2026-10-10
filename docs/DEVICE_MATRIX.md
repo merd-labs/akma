@@ -6,6 +6,16 @@
 | Infinix Zero 5G X6815B | 11, API 30, XOS 10 | Dimensity 900, Cortex-A78/A55, Mali-G68 MC4 | 8GB | Performance comparison; 120 Hz |
 | Tecno Camon 30 CL6 | 14, API 34, HiOS 14 | Helio G99 Ultimate, Mali-G57 MC2 | 8GB+ | Android 14 compatibility, 120 Hz |
 
+## Measured baseline status (as of 2026-10-10)
+
+The table above is team-reported. What has actually been measured:
+
+| Device | Hardware snapshot (RAM / storage / thermal) | Offline generation | Details |
+|---|---|---|---|
+| Tecno Pova 2 LE7 | **Measured** (2026-10-09, API 30, MemTotal 5,905,908 kB) | NOT TESTED with the bundled model | [POVA2_PHYSICAL_2026-10-09.md](evidence/device/POVA2_PHYSICAL_2026-10-09.md) |
+| Tecno Camon 30 CL6 | **NOT MEASURED**; observed Android API 36 (matrix says 14 / API 34) | Observed on earlier builds, incl. one failed Reschedule case; final release APK not run | [CAMON30_BASELINE.md](evidence/device/CAMON30_BASELINE.md) |
+| Infinix Zero 5G X6815B | **NOT MEASURED** (ADB unauthorized on the build host) | NOT TESTED | [INFINIX_ZERO5G_BASELINE.md](evidence/device/INFINIX_ZERO5G_BASELINE.md) |
+
 These specifications were **provided by the team**, not independently verified. Do not infer Vulkan/GPU inference availability from graphics API support alone. Rendering at 120Hz is not a requirement for inference speed; avoid UI stalls.
 
 ADB (Bash / PowerShell):
