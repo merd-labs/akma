@@ -1,6 +1,6 @@
 # Infinix Zero 5G (X6815B, Rhence's handset) baseline — status
 
-**Status: NOT MEASURED.** No hardware reading for this handset exists in the repository. This page records what is known, why no snapshot has been taken, and the exact command to take one (`zero5g` alias in `scripts/bench`).
+**Status: PARTIALLY MEASURED (2026-10-10).** A model-enabled smoke test ran on this handset; see [zero5g-2026-10-10.md](zero5g-2026-10-10.md). Items below still marked NOT MEASURED were not taken. This page records what is known, why no snapshot has been taken, and the exact command to take one (`zero5g` alias in `scripts/bench`).
 
 ## What is known (not measurements)
 
@@ -15,13 +15,14 @@
 
 | Metric | Value |
 |---|---|
-| Android API / release / ABI / model | NOT MEASURED |
-| `MemTotal` / `MemAvailable` | NOT MEASURED |
-| Free `/data` | NOT MEASURED |
-| Battery temperature / thermal status | NOT MEASURED |
-| App PSS, model load, analysis, generation, first token | NOT MEASURED |
-| Offline generation (English / Filipino / Taglish) | NOT TESTED |
-| Final merged release APK (`2dd925c3…bae99a`) | NOT TESTED; never installed or run on this handset |
+| Android API / release / model | **API 31 / Android 12** / Infinix X6815B (ABI not read) |
+| `MemTotal` / `MemAvailable` | 7,805,584 kB / NOT MEASURED |
+| Free `/data` | about 56.3 GB |
+| Battery temperature / thermal status | 30.1 C (USB powered) at one point; thermal status NOT MEASURED |
+| App PSS, model load, analysis, generation, first token | PSS 1.51-1.53 GB post-run; generation 4.8-7.4 s; first text 3.0-4.6 s; analysis has no model call; model load NOT MEASURED |
+| Offline generation (English / Filipino / Taglish) | Taglish draft recorded; English/Filipino journeys not driven by the tester; owner reported working flows (not independently captured) |
+| Final merged release APK (`2dd925c3…bae99a`) | NOT TESTED; superseded by the Gemma 4 E2B build below |
+| Gemma 4 E2B build (release, debug-signed, no model in APK, SHA-256 `de9f10c9…3a8d`) | Installed, model sideloaded, **5 offline generations observed**; see [zero5g-2026-10-10.md](zero5g-2026-10-10.md) |
 
 Earlier Pova 2 results and the Camon 30 observations do not establish anything for this handset.
 

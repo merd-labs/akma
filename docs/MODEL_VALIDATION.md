@@ -17,6 +17,14 @@ Based on desktop verification (PR #16), we tested Python LiteRT-LM prompt labs f
 
 *Note: Qwen Q8 vs Gemma Q4 is not a controlled quantization comparison. No human quality scores have been finalized. Desktop pass does NOT guarantee Android pass.*
 
+## 🔄 Current model: Gemma 4 E2B (2026-10-10, supersedes the Qwen2.5 rows below)
+
+- **Why:** Qwen3-1.7B (the interim choice) was incoherent in Filipino/Taglish regardless of prompt wording ([qwen3-1p7b-latency.md](evidence/qwen3-1p7b-latency.md)).
+- **Artifact:** `gemma-4-E2B-it.litertlm`, [litert-community/gemma-4-E2B-it-litert-lm](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm) rev `b3ca0d2f076785a8f4b2219ddbd2bdb99954eae1`, 2,588,147,712 bytes, SHA-256 `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c`, Apache-2.0 per the model card. Sideloaded (above the 2 GiB APK asset limit).
+- **Desktop gate (PASS, provisional):** 19 synthetic cases, LiteRT-LM 0.18.0 CPU: about 13 of 14 Filipino/Taglish drafts coherent and on-intent, mean 6.9 s versus 26.7 s for Qwen3-1.7B on the same machine; injection cases did not commit. Raw outputs and caveats: [gemma4-e2b-filipino-gate.md](evidence/gemma4-e2b-filipino-gate.md). Needs review by a Filipino speaker.
+- **Device (Infinix Zero 5G, Android 12 / API 31):** 5 offline generations, 4.8-7.4 s, PSS about 1.5 GB post-run, no crash; option switching verified. Details and gaps: [device/zero5g-2026-10-10.md](evidence/device/zero5g-2026-10-10.md).
+- **Still NOT TESTED:** Pova 2 and Camon 30 with this model, model init time, peak memory, thermals, overlay, native-speaker quality review.
+
 ## 📱 Physical Android Integration (Status: PARTIAL — Camon 30 only; Pova 2 acceptance gate still OPEN)
 Do not claim Pova 2 (Tecno LE7, Android 11 / API 30) integration works. Offline generation with the bundled model was observed only on a **Tecno Camon 30 (CL6), Android API 36, ARM64** — a different device, and not the acceptance device. Rows below state what the linked evidence records; anything without a recorded observation is **NOT TESTED / NOT MEASURED**.
 
@@ -30,7 +38,7 @@ Do not claim Pova 2 (Tecno LE7, Android 11 / API 30) integration works. Offline 
 | Process memory | Post-run snapshots only (PSS ≈ 2.0–2.1 GB on Camon 30); **no peak measured** | both evidence files above |
 | Short HR reschedule preserves user intent | **FAILED / unverified** — one Reschedule draft was a generic refusal; an earlier trial accepted the proposed time despite Reschedule | [qwen-runtime-stability-20261010.md](evidence/qwen-runtime-stability-20261010.md) |
 | Unusable analysis output | Observed twice on a clearer interview invitation; Akma showed a recoverable error and claimed no draft | [qwen-runtime-stability-20261010.md](evidence/qwen-runtime-stability-20261010.md) |
-| Multilingual (English / Filipino / Taglish) quality | **NOT TESTED** on Android | — |
+| Multilingual (English / Filipino / Taglish) quality | Qwen2.5 build: **NOT TESTED**. Gemma 4 E2B: Taglish draft observed on Zero 5G; see the section above | [device/zero5g-2026-10-10.md](evidence/device/zero5g-2026-10-10.md) |
 | Pova 2: load time, draft latency, peak memory | **NOT MEASURED** | — |
 | Pova 2: three back-to-back generations | **NOT TESTED** | — |
 | Pova 2: airplane mode (Wi-Fi + mobile data OFF) generation | **NOT TESTED** (radio-state probe passed; no inference attempted) | [device/20261010-runtime-integrity.md](evidence/device/20261010-runtime-integrity.md) |
