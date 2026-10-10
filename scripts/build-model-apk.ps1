@@ -4,9 +4,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$modelName = 'Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm'
-$expectedBytes = 1597931520L
-$expectedHash = 'FAA60663B333290C1496C499828B21D3E3254A788CACD8CCE917CE0F761A2DC9'
+$modelName = 'Qwen3_1.7B.litertlm'
+$expectedBytes = 2056729520L
+$expectedHash = '66064A4E9269CB693E124C4E3040BCB8A446B10BCA42663896329495ADD3861C'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $source = (Resolve-Path -LiteralPath $ModelPath).Path
 $destination = Join-Path $repo "app/src/main/assets/$modelName"

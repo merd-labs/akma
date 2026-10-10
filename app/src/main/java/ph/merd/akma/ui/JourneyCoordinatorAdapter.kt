@@ -51,6 +51,10 @@ internal class JourneyCoordinatorAdapter(
                 if (current() && displayed.canChooseDraft) {
                     tone = choice
                     toneChanged(choice)
+                    // A staged confirmation shows the exact tone it will use, so a tone change re-stages it.
+                    displayed.pendingConfirmation?.let { pending ->
+                        replies.selectDraft(pending.action.id, choice, pending.request.userInstruction)
+                    }
                 }
             },
             onSelectAction = { id ->

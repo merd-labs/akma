@@ -25,7 +25,7 @@ import ph.merd.akma.provisioning.BundledQwenArtifact
 import ph.merd.akma.provisioning.ModelProvisionResult
 import ph.merd.akma.safety.ModelOutputSafety
 
-/** One CPU engine. The coordinator serializes calls and owns the timeout. */
+/** One CPU engine running Qwen3-1.7B. The coordinator serializes calls and owns the timeout. */
 class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
     private val app = context.applicationContext
     private val runtime = NativeHandleSlot<Engine>()
@@ -60,16 +60,15 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
         }
     }
 
+    /**
+     * No inference here. The category and actions are deterministic (the model never picks them) and the
+     * summary this call used to request was never shown, yet cost a full prefill plus decode (~30 s on device).
+     */
     override suspend fun analyze(request: AnalyzeRequest): Result<AnalysisResult> = guarded {
         ReplyValidation.validate(request).getOrThrow()
-        val safe = neutralizedForPrompt(request)
-        val input = org.json.JSONObject().put("incoming_message", safe.message)
-            .put("previous_context", safe.history).put("relationship", safe.relationship).toString()
-        val raw = generate(prompt("analyze_v2.txt"), input, 192)
-        val purpose = LocalModelOutput.purpose(raw)
         val category = categoryFor(request.message)
         val actions = ActionCatalog.actionsFor(category).take(ReplyValidation.MAX_ACTIONS)
-        AnalysisResult(category, "Untrusted model summary: $purpose", true, actions, AnalysisSource.DETERMINISTIC)
+        AnalysisResult(category, "Choose how to respond to this message.", true, actions, AnalysisSource.DETERMINISTIC)
             .also { ReplyValidation.validate(it).getOrThrow() }
     }
 
@@ -78,21 +77,7 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
         val selected = ActionCatalog.action(request.selectedActionId) ?: error("Unknown action.")
         ReplyValidation.validate(request, listOf(selected)).getOrThrow()
         val safe = neutralizedForPrompt(request)
-        val input = org.json.JSONObject().put("incoming_message", safe.original.message)
-            .put("previous_context", safe.original.history)
-            .put("relationship", safe.original.relationship)
-            .put("selected_action_id", request.selectedActionId)
-            .put("selected_intention", selected.label)
-            .put("tone", request.tone.name.lowercase(Locale.ROOT))
-            .put("user_instructions", safe.userInstruction).toString()
-        val actionRule = when (request.selectedActionId) {
-            "reschedule" -> "The user selected RESCHEDULE. Ask for a different time. Do not invent an excuse, do not invent availability, and do not accept their proposed time."
-            "clarify", "ask_agenda", "ask_to_clarify" -> "The user selected a question. Ask for details before agreeing to anything."
-            "decline" -> "The user selected DECLINE. Politely decline. Do not accept the request, and do not invent an excuse."
-            "acknowledge" -> "The user selected ACKNOWLEDGE. Acknowledge receipt only. Do not promise to do any work or agree to any request."
-            else -> "Follow the selected action exactly."
-        }
-        val raw = generate(prompt("generate_v2.txt") + "\n" + actionRule, input, 128)
+        val raw = generate(ReplyPrompts.SYSTEM, ReplyPrompts.draftUser(safe), ReplyPrompts.MAX_DRAFT_TOKENS)
         val draft = LocalModelOutput.draft(raw)
         if (request.selectedActionId == "reschedule") {
             require(!Regex("(?i)\\b(?:(i(?:'m| am)|we(?:'re| are))\\s+(?:available|free)|(?:available|free|libre)\\s+(?:ako|tayo|kami))\\b").containsMatchIn(draft)) {
@@ -101,9 +86,6 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
         }
         draft.also { ReplyValidation.validateDraft(it).getOrThrow() }
     }
-
-    private fun prompt(name: String): String = app.assets.open("prompts/$name")
-        .bufferedReader(Charsets.UTF_8).use { it.readText() }
 
     private fun categoryFor(message: String): String {
         val text = message.lowercase(Locale.ROOT)
@@ -192,15 +174,15 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
 
     companion object {
         private const val TAG = "AkmaInference"
-        const val MODEL_NAME = "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm"
-        const val MODEL_BYTES = 1597931520L
-        const val MODEL_SHA256 = "faa60663b333290c1496c499828b21d3e3254a788cacd8cce917ce0f761a2dc9"
+        const val MODEL_NAME = "Qwen3_1.7B.litertlm"
+        const val MODEL_BYTES = 2056729520L
+        const val MODEL_SHA256 = "66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c"
 
         fun modelFile(context: Context): File = File(context.filesDir, "models/$MODEL_NAME")
 
-        // The artifact's embedded template expects a different content representation.
-        // This is the Qwen role wrapper validated by the desktop probe, passed through
-        // Android's ConversationConfig rather than preformatting the user message.
+        // Qwen role wrapper passed through ConversationConfig rather than preformatting the user message.
+        // The empty think block is Qwen3's non-thinking mode: without it the model spends the whole token
+        // budget (and tens of seconds on CPU) reasoning before it writes the reply.
         private val QWEN_CHAT_TEMPLATE = """
             {%- for message in messages -%}
             {{- '<|im_start|>' + message['role'] + '\n' -}}
@@ -209,7 +191,7 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
             {%- endfor -%}
             {{- '<|im_end|>\n' -}}
             {%- endfor -%}
-            {%- if add_generation_prompt -%}{{- '<|im_start|>assistant\n' -}}{%- endif -%}
+            {%- if add_generation_prompt -%}{{- '<|im_start|>assistant\n<think>\n\n</think>\n\n' -}}{%- endif -%}
         """.trimIndent()
 
     }

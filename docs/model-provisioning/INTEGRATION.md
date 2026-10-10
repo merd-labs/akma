@@ -19,7 +19,7 @@ val model = when (val result = provisioner.ensureBundledModel(BundledQwenArtifac
 
 The domain LocalReplyEngine API is unchanged. Typed provisioning failure must remain an error, never Ready or a synthetic reply. On native model-loading failure, call `provisioner.invalidateVerification()` before retrying so the next attempt performs full validation. This method deletes no files. Native crash/OOM/linkage recovery remains with the runtime/domain owner.
 
-`BundledQwenArtifact.spec` copies the owner's PR #26 metadata: filename `Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm`, revision `19edb84c69a0212f29a6ef17ba0d6f278b6a1614`, 1,597,931,520 bytes, SHA-256 `faa60663b333290c1496c499828b21d3e3254a788cacd8cce917ce0f761a2dc9`, LiteRT-LM format. The pinned [source artifact](https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/blob/19edb84c69a0212f29a6ef17ba0d6f278b6a1614/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm) publishes the same SHA. Model replacement requires owner review and fresh device proof.
+`BundledQwenArtifact.spec` records the Qwen3-1.7B int8 pin (replacing the owner's PR #26 Qwen2.5 pin): filename `Qwen3_1.7B.litertlm`, revision `73fbc3fe8271c162a603ee66f6e7ed25b6211195`, 2,056,729,520 bytes, SHA-256 `66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c`, LiteRT-LM format. The pinned [source artifact](https://huggingface.co/litert-community/Qwen3-1.7B/blob/73fbc3fe8271c162a603ee66f6e7ed25b6211195/Qwen3_1.7B.litertlm) publishes the same SHA. Model replacement requires owner review and fresh device proof.
 
 ## Integrity and recovery
 
@@ -38,9 +38,9 @@ Ubuntu Bash:
 ```bash
 export JAVA_HOME=/path/to/jdk17
 export ANDROID_HOME=/path/to/android-sdk
-bash scripts/provision/verify-release.sh --model "$MODEL_FILE" 1597931520 faa60663b333290c1496c499828b21d3e3254a788cacd8cce917ce0f761a2dc9
+bash scripts/provision/verify-release.sh --model "$MODEL_FILE" 2056729520 66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c
 ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
-bash scripts/provision/verify-release.sh --apk "$APK_FILE" Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm 1597931520 faa60663b333290c1496c499828b21d3e3254a788cacd8cce917ce0f761a2dc9
+bash scripts/provision/verify-release.sh --apk "$APK_FILE" Qwen3_1.7B.litertlm 2056729520 66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c
 "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$APK_FILE"
 "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest min-sdk "$APK_FILE"
 ```
@@ -50,9 +50,9 @@ Windows PowerShell (use existing local installation paths):
 ```powershell
 $env:JAVA_HOME = $Jdk17Directory
 $env:ANDROID_HOME = $AndroidSdkDirectory
-.\scripts\provision\verify-release.ps1 --model $ModelFile 1597931520 faa60663b333290c1496c499828b21d3e3254a788cacd8cce917ce0f761a2dc9
+.\scripts\provision\verify-release.ps1 --model $ModelFile 2056729520 66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c
 .\gradlew.bat --no-daemon --max-workers=2 :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
-.\scripts\provision\verify-release.ps1 --apk $ApkFile Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm 1597931520 faa60663b333290c1496c499828b21d3e3254a788cacd8cce917ce0f761a2dc9
+.\scripts\provision\verify-release.ps1 --apk $ApkFile Qwen3_1.7B.litertlm 2056729520 66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c
 & "$env:ANDROID_HOME\cmdline-tools\latest\bin\apkanalyzer.bat" manifest application-id $ApkFile
 & "$env:ANDROID_HOME\cmdline-tools\latest\bin\apkanalyzer.bat" manifest min-sdk $ApkFile
 ```

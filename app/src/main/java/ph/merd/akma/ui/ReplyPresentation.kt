@@ -20,8 +20,12 @@ import ph.merd.akma.overlay.clearOverlayReplySession
 internal val ReplyState.canStartProcessing: Boolean
     get() = !busy && pendingConfirmation == null
 
+/**
+ * Action and tone stay switchable while a confirmation is staged: each pick re-stages the request under a
+ * new token, which invalidates the old Confirm control. Generation still needs a separate Confirm tap.
+ */
 internal val ReplyState.canChooseDraft: Boolean
-    get() = canStartProcessing && analysis != null &&
+    get() = !busy && analysis != null &&
         phase in setOf(ReplyPhase.ChoosingAction, ReplyPhase.Editing, ReplyPhase.Copied)
 
 internal val ReplyState.canRetryLocalModel: Boolean
