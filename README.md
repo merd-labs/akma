@@ -70,17 +70,34 @@ No APK or model weights are committed (the `.litertlm` asset is git-ignored and 
 
 Details: [docs/model-provisioning/INTEGRATION.md](docs/model-provisioning/INTEGRATION.md). Verify with `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:compileReleaseKotlin` (420 JVM tests, synthetic engine).
 
-## Target devices
+## Physical device matrix
 
-Full team-reported specs and per-phone risks: [docs/DEVICE_MATRIX.md](docs/DEVICE_MATRIX.md).
+The two physical test phones. "Specified" is the team-supplied spec sheet; "Observed" is what ADB reported on the unit that was actually tested (see [docs/DEVICE_MATRIX.md](docs/DEVICE_MATRIX.md) for the third baseline, Tecno Camon 30, and per-phone risks).
 
-| Phone | SoC / RAM / storage | Gemma 4 E2B |
+| | **Tecno Pova 2 (LE7)** | **Infinix Zero 5G (X6815B)** |
 |---|---|---|
-| Tecno Pova 2 (LE7), Android 11, HiOS 7.6 (worst case, design for 4 GB) | Helio G85 (2x A75 + 6x A55), 4/6 GB, eMMC 5.1, 60 Hz | **NOT TESTED** |
-| Infinix Zero 5G (X6815B), Android 11 stated, unit reported 12, XOS 10 | Dimensity 900 (2x A78 + 6x A55), 8 GB, UFS 3.1, 120 Hz | **Partial:** 5 offline drafts, 4.8-7.4 s ([evidence](docs/evidence/device/zero5g-2026-10-10.md)) |
-| Tecno Camon 30 (CL6), Android 14 / API 34 stated, HiOS 14 | Helio G99 Ultimate (2x A76 + 6x A55), 8 GB, UFS 2.2, 120 Hz | **NOT TESTED** |
+| Role | Acceptance gate, **worst case** (design for the 4 GB variant) | Performance comparison, final-device gate |
+| OS / skin (specified) | Android 11, HiOS 7.6 | Android 11, XOS 10 |
+| Target API | 30 | 30 |
+| **Observed OS** | Android 11 / API 30, arm64-v8a ([evidence](docs/evidence/device/POVA2_PHYSICAL_2026-10-09.md)) | **Android 12 / API 31** ([evidence](docs/evidence/device/zero5g-2026-10-10.md)) |
+| SoC | MediaTek Helio G85, 12 nm | MediaTek Dimensity 900 5G, 6 nm |
+| CPU | 2x Cortex-A75 @ 2.0 GHz + 6x Cortex-A55 @ 1.8 GHz | 2x Cortex-A78 @ 2.4 GHz + 6x Cortex-A55 @ 2.0 GHz |
+| GPU / APIs | Mali-G52 MC2 (up to 1000 MHz), OpenGL ES 3.2, Vulkan 1.1 | Mali-G68 MC4, OpenGL ES 3.2, Vulkan 1.1 |
+| RAM (specified) | 4 GB or 6 GB LPDDR4X | 8 GB LPDDR5 |
+| **Observed RAM** | `MemTotal` 5,905,908 kB (a **6 GB** unit; the 4 GB variant is untested) | `MemTotal` 7,805,584 kB |
+| Storage (specified) | 64 or 128 GB, **eMMC 5.1** (slow I/O) | 128 GB, UFS 3.1 |
+| **Observed free storage** | about 8.1 GB free of 113 GB (93 % used) at preflight | about 56.3 GB free of 113 GB |
+| Display | 6.9", 1080x2460, ~389 ppi, 60 Hz, 180 Hz touch, punch-hole | 6.78", 1080x2460, ~388-396 ppi, 120 Hz (8.33 ms/frame), punch-hole |
+| Connectivity | Not in the supplied spec (inference is offline) | 5G SA/NSA, Wi-Fi 6 (offline inference does not use them) |
+| Battery / charge | 7,000 mAh, 18 W | 5,000 mAh, 33 W |
+| Background policy | HiOS: aggressive service/receiver/wakelock limits | XOS 10: app limits and freezing |
+| Thermal | 12 nm: prone to steady throttling under sustained load | 6 nm: stable under sustained load |
+| **Gemma 4 E2B result** | **NOT TESTED** | **Partial, recorded 2026-10-10:** 5 offline drafts, 4.8-7.4 s each, ~1.5 GB PSS after load, action/tone switching verified |
 
-Pova 2 and Camon 30 have not run this model; the matrix lists the spec-derived risks (4 GB RAM and slow eMMC on the Pova 2, Android 14 service rules on the Camon 30). Treat them as unverified until someone records a run.
+**Reading the matrix**
+- Zero 5G: the only phone with a recorded Gemma 4 E2B run. Not yet measured there: model init time, peak memory, thermals, overlay, a Filipino-speaker review.
+- Pova 2: no Gemma 4 E2B run is committed. Spec-derived risks: a ~1.7 GB model on a 4 GB phone under HiOS background killing; slow eMMC for the 2.6 GB copy and SHA-256 (init budget is 15 min); only ~8.1 GB free on the tested unit against a ~5.2 GB peak during first load (about 2.6 GB afterwards); slower and throttle-prone A75/A55 12 nm CPU. A 6 GB unit does not prove the 4 GB variant.
+- The third baseline, Tecno Camon 30 (Android 14 / API 34 specified, Helio G99 Ultimate, 8 GB, UFS 2.2, 120 Hz), is **NOT TESTED** with this model; see [docs/DEVICE_MATRIX.md](docs/DEVICE_MATRIX.md).
 
 ## 🧠 Model Integration Status
 
