@@ -42,10 +42,10 @@ class PanelStateMapperTest {
     }
 
     @Test
-    fun pendingConfirmationLocksActionAndToneUntilCancelled() {
+    fun pendingConfirmationKeepsChoicesEnabledAndMirrorsTheStagedRequest() {
         val ui = ReplyState(phase = ReplyPhase.ChoosingAction, message = "message", analysis = analysis, pendingConfirmation = pending)
             .ui(tone = ReplyTone.FRIENDLY, selected = "something_else")
-        assertFalse(ui.choice!!.enabled)
+        assertTrue(ui.choice!!.enabled)
         assertEquals(action.id, ui.choice!!.selectedActionId)
         assertEquals(ReplyTone.CONCISE, ui.choice!!.tone)
         assertFalse(ui.canStartOver)

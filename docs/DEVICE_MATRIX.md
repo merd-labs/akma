@@ -14,7 +14,7 @@ The table above is team-reported. What has actually been measured:
 |---|---|---|---|
 | Tecno Pova 2 LE7 | **Measured** (2026-10-09, API 30, MemTotal 5,905,908 kB) | NOT TESTED with the bundled model | [POVA2_PHYSICAL_2026-10-09.md](evidence/device/POVA2_PHYSICAL_2026-10-09.md) |
 | Tecno Camon 30 CL6 | **NOT MEASURED**; observed Android API 36 (matrix says 14 / API 34) | Observed on earlier builds, incl. one failed Reschedule case; final release APK not run | [CAMON30_BASELINE.md](evidence/device/CAMON30_BASELINE.md) |
-| Infinix Zero 5G X6815B | **NOT MEASURED** (ADB unauthorized on the build host) | NOT TESTED | [INFINIX_ZERO5G_BASELINE.md](evidence/device/INFINIX_ZERO5G_BASELINE.md) |
+| Infinix Zero 5G X6815B | Partial: Android 12 / API 31, 7.8 GB RAM, 56 GB free (2026-10-10) | Gemma 4 E2B smoke test: 5 offline generations, 4.8-7.4 s each | [zero5g-2026-10-10.md](evidence/device/zero5g-2026-10-10.md) |
 
 These specifications were **provided by the team**, not independently verified. Do not infer Vulkan/GPU inference availability from graphics API support alone. Rendering at 120Hz is not a requirement for inference speed; avoid UI stalls.
 

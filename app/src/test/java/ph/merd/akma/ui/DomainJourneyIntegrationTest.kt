@@ -62,7 +62,7 @@ class DomainJourneyIntegrationTest {
     private fun stage(replies: ReplyCoordinator, id: String, tone: ReplyTone): ConfirmationUi {
         replies.selectDraft(id, tone)
         val ui = replies.panel(ReplyTone.CONCISE, "unsupported")
-        assertFalse(ui.choice!!.enabled)
+        assertTrue(ui.choice!!.enabled) // A staged confirmation can still be switched; Confirm stays separate.
         assertEquals(CopyUi.Disabled, ui.copy)
         assertNull(ui.reply)
         return requireNotNull(ui.confirmation).also {

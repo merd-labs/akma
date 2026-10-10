@@ -80,8 +80,8 @@ enum class RefineKind(val instruction: String) {
 
 /**
  * Maps coordinator state to panel content.
- * [selectedTone] and [lastSelectedActionId] are UI-held choices; a pending confirmation overrides both
- * and locks the choices, so the staged action and tone cannot change until the user cancels.
+ * [selectedTone] and [lastSelectedActionId] are UI-held choices; a pending confirmation overrides both,
+ * so the panel always shows the exact staged action and tone. Picking another re-stages a new confirmation.
  * Analysis reaching ReplyState is already normalized, so its action labels are catalog labels.
  */
 fun ReplyState.toPanelUi(

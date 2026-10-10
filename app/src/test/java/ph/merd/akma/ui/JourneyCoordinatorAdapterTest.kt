@@ -59,21 +59,30 @@ class JourneyCoordinatorAdapterTest {
         assertEquals(listOf(pending.request), engine.requests)
     }
 
-    @Test fun pendingToneAndActionStayLockedAndStaleCancelCannotClearReplacement() = runTest {
-        val replies = ready(Engine())
+    @Test fun switchingWhileStagedRestagesAndStaleBindingsCannotClearOrConfirmReplacement() = runTest {
+        val engine = Engine()
+        val replies = ready(engine)
         replies.analyze(); runCurrent()
         val bridge = adapter(replies)
         bridge.callbacks(replies.state.value, ReplyTone.CONCISE).onSelectAction("reschedule")
         val old = requireNotNull(replies.state.value.pendingConfirmation)
         val callbacks = bridge.callbacks(replies.state.value, ReplyTone.FRIENDLY)
         callbacks.onSelectTone(ReplyTone.PROFESSIONAL)
+        val restaged = requireNotNull(replies.state.value.pendingConfirmation)
+        assertNotEquals(old.id, restaged.id)
+        assertEquals("reschedule", restaged.request.selectedActionId)
+        assertEquals(ReplyTone.PROFESSIONAL, restaged.request.tone)
+        // The binding built for the older state is stale and must not act on the newer one.
         callbacks.onSelectAction("accept")
-        assertEquals(old, replies.state.value.pendingConfirmation)
+        assertEquals(restaged, replies.state.value.pendingConfirmation)
         replies.draft("accept", ReplyTone.FRIENDLY) // Simulate another coordinator client.
         val replacement = requireNotNull(replies.state.value.pendingConfirmation)
         bridge.confirm(old.id)
+        bridge.confirm(restaged.id)
         callbacks.onCancelConfirmation()
+        runCurrent()
         assertEquals(replacement, replies.state.value.pendingConfirmation)
+        assertTrue(engine.requests.isEmpty())
     }
 
     @Test fun cancellationClearsSessionAndOldConfirmNeverStartsDraft() = runTest {
@@ -261,5 +270,29 @@ class JourneyCoordinatorAdapterTest {
         assertEquals(1, closes)
         assertEquals(ReplyState(phase = ReplyPhase.Ready), replies.state.value)
         assertNull(adapter(replies).callbacks(replies.state.value, ReplyTone.PROFESSIONAL).onClose)
+    }
+
+    @Test fun toneChangeWhileConfirmationIsStagedRestagesSameActionWithNewTone() = runTest {
+        val engine = Engine()
+        val replies = ready(engine)
+        replies.analyze(); runCurrent()
+        val bridge = adapter(replies)
+        var shownTone = ReplyTone.PROFESSIONAL
+        bridge.callbacks(replies.state.value, shownTone, toneChanged = { shownTone = it }).onSelectAction("accept")
+        val staged = requireNotNull(replies.state.value.pendingConfirmation)
+        assertEquals(ReplyTone.PROFESSIONAL, staged.request.tone)
+        // A fresh binding is built per displayed state, as the panel does on recomposition.
+        bridge.callbacks(replies.state.value, shownTone, toneChanged = { shownTone = it }).onSelectTone(ReplyTone.FRIENDLY)
+        val restaged = requireNotNull(replies.state.value.pendingConfirmation)
+        assertNotEquals(staged.id, restaged.id)
+        assertEquals("accept", restaged.request.selectedActionId)
+        assertEquals(ReplyTone.FRIENDLY, restaged.request.tone)
+        assertEquals(ReplyTone.FRIENDLY, shownTone)
+        // Switching action keeps the tone chosen last and still never starts generation.
+        bridge.callbacks(replies.state.value, shownTone, toneChanged = { shownTone = it }).onSelectAction("reschedule")
+        val switched = requireNotNull(replies.state.value.pendingConfirmation)
+        assertEquals("reschedule", switched.request.selectedActionId)
+        assertEquals(ReplyTone.FRIENDLY, switched.request.tone)
+        assertTrue(engine.requests.isEmpty())
     }
 }

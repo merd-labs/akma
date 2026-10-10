@@ -243,16 +243,24 @@ class DraftConfirmationUiTest {
         assertEquals(ReplyState(phase = ReplyPhase.Ready), replies.state.value)
     }
 
-    @Test fun pendingSelectionCannotBeChangedByRacingActionOrToneClicks() = runTest {
+    @Test fun pendingSelectionCanBeSwitchedAndEachPickReplacesTheStagedRequest() = runTest {
         val engine = Engine()
         val replies = ready(engine)
         replies.selectDraft("accept", ReplyTone.FRIENDLY)
-        val pending = requireNotNull(replies.state.value.displayedConfirmation())
-        assertFalse(replies.state.value.canChooseDraft)
+        val first = requireNotNull(replies.state.value.displayedConfirmation())
+        assertTrue(replies.state.value.canChooseDraft)
         assertFalse(replies.state.value.canStartProcessing)
         replies.selectDraft("reschedule", ReplyTone.CONCISE)
+        val second = requireNotNull(replies.state.value.displayedConfirmation())
+        assertNotEquals(first.id, second.id)
+        assertEquals("reschedule", second.request.selectedActionId)
+        assertEquals(ReplyTone.CONCISE, second.request.tone)
+        // The first Confirm control is dead; only the displayed token can start generation.
+        replies.confirmDisplayedDraft(first.id)
+        runCurrent()
+        assertTrue(engine.requests.isEmpty())
         replies.selectDraft("accept", ReplyTone.PROFESSIONAL)
-        assertEquals(pending, replies.state.value.displayedConfirmation())
+        assertEquals(ReplyTone.PROFESSIONAL, replies.state.value.displayedConfirmation()?.request?.tone)
         assertTrue(engine.requests.isEmpty())
     }
 
