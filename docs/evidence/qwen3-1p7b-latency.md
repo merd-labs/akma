@@ -1,5 +1,7 @@
 # Qwen3-1.7B switch and prompt optimization: desktop evidence
 
+> **Model superseded** by Gemma 4 E2B for Filipino/Taglish quality: see [gemma4-e2b-filipino-gate.md](gemma4-e2b-filipino-gate.md). The option-switching fix, single-call `analyze()` and compact prompt layout described here still apply.
+
 **Status:** implemented and unit-tested. **Pova 2 / on-device latency: NOT TESTED.** No Android device was connected, so no on-device number below exists. Desktop figures only rank the old and new pipelines against each other.
 
 ## Problem

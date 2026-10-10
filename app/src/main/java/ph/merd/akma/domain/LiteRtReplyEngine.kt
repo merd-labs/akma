@@ -21,11 +21,11 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import ph.merd.akma.provisioning.BundledModelProvisioner
-import ph.merd.akma.provisioning.BundledQwenArtifact
+import ph.merd.akma.provisioning.LocalModelArtifact
 import ph.merd.akma.provisioning.ModelProvisionResult
 import ph.merd.akma.safety.ModelOutputSafety
 
-/** One CPU engine running Qwen3-1.7B. The coordinator serializes calls and owns the timeout. */
+/** One CPU engine running Gemma 4 E2B. The coordinator serializes calls and owns the timeout. */
 class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
     private val app = context.applicationContext
     private val runtime = NativeHandleSlot<Engine>()
@@ -41,7 +41,7 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
 
     override suspend fun initialize(): Result<Unit> = guarded {
         runtime.invalidate().getOrThrow()
-        val model = when (val result = provisioner.ensureBundledModel(BundledQwenArtifact.spec)) {
+        val model = when (val result = provisioner.ensureBundledModel(LocalModelArtifact.spec)) {
             is ModelProvisionResult.Verified -> result.model.file
             is ModelProvisionResult.Failure -> throw LocalModelProvisioningException(result.reason)
         }
@@ -107,7 +107,6 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
             systemInstruction = Contents.of(instruction),
             samplerConfig = SamplerConfig(topK = 1, topP = 1.0, temperature = 0.0, seed = 42),
             maxOutputToken = maxTokens,
-            chatTemplate = QWEN_CHAT_TEMPLATE,
         )
         currentCoroutineContext().ensureActive()
         val conversation = active.createConversation(config)
@@ -174,25 +173,10 @@ class LiteRtReplyEngine(context: Context) : LocalReplyEngine, RuntimeRecovery {
 
     companion object {
         private const val TAG = "AkmaInference"
-        const val MODEL_NAME = "Qwen3_1.7B.litertlm"
-        const val MODEL_BYTES = 2056729520L
-        const val MODEL_SHA256 = "66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c"
+        const val MODEL_NAME = "gemma-4-E2B-it.litertlm"
+        const val MODEL_BYTES = 2588147712L
+        const val MODEL_SHA256 = "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c"
 
         fun modelFile(context: Context): File = File(context.filesDir, "models/$MODEL_NAME")
-
-        // Qwen role wrapper passed through ConversationConfig rather than preformatting the user message.
-        // The empty think block is Qwen3's non-thinking mode: without it the model spends the whole token
-        // budget (and tens of seconds on CPU) reasoning before it writes the reply.
-        private val QWEN_CHAT_TEMPLATE = """
-            {%- for message in messages -%}
-            {{- '<|im_start|>' + message['role'] + '\n' -}}
-            {%- for item in message['content'] -%}
-            {%- if item['type'] == 'text' -%}{{- item['text'] -}}{%- endif -%}
-            {%- endfor -%}
-            {{- '<|im_end|>\n' -}}
-            {%- endfor -%}
-            {%- if add_generation_prompt -%}{{- '<|im_start|>assistant\n<think>\n\n</think>\n\n' -}}{%- endif -%}
-        """.trimIndent()
-
     }
 }

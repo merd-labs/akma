@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import ph.merd.akma.provisioning.BundledQwenArtifact
+import ph.merd.akma.provisioning.LocalModelArtifact
 
 /** Synthetic messages only. These pin prompt structure and size, not model quality. */
 class ReplyPromptsTest {
@@ -36,7 +36,7 @@ class ReplyPromptsTest {
         assertEquals(
             "Sender's message:\nHello, we would like to invite you to interview for the internship. Are you free Friday at 10 AM?\n\n---\n" +
                 "Write my reply to this message.\n" +
-                "What to say: Politely ask if we can meet at a different time instead.\n" +
+                "What to say: Politely ask if we can meet at a different time instead. Do not say whether you are free.\n" +
                 "Tone: polite and professional. Language: English only, no Filipino words.\n" +
                 "Write as me, in first person, 1-2 short sentences, max 35 words. Output only the reply text.",
             ReplyPrompts.draftUser(request("Hello, we would like to invite you to interview for the internship. Are you free Friday at 10 AM?")),
@@ -88,7 +88,7 @@ class ReplyPromptsTest {
         assertTrue(ReplyPrompts.actionRule("clarify").contains("Do not agree yet"))
         assertTrue(ReplyPrompts.actionRule("acknowledge").startsWith("Only say you got the message"))
         assertTrue(ReplyPrompts.actionRule("respond_briefly").contains("Do not agree to anything"))
-        assertFalse(ReplyPrompts.actionRule("reschedule").contains("available"))
+        assertTrue(ReplyPrompts.actionRule("reschedule").contains("Do not say whether you are free"))
     }
 
     /** Prefill dominates CPU latency; this guards against the prompt growing back toward the old ~600 tokens. */
@@ -106,11 +106,17 @@ class ReplyPromptsTest {
     }
 
     @Test fun bundledModelPinMatchesTheEngineConstants() {
-        val spec = BundledQwenArtifact.spec
-        assertEquals("Qwen3_1.7B.litertlm", spec.filename)
+        val spec = LocalModelArtifact.spec
+        assertEquals("gemma-4-E2B-it.litertlm", spec.filename)
+        assertEquals(2_588_147_712L, spec.sizeBytes)
+        assertTrue("sideloaded: too large for a single APK asset", spec.sizeBytes > Int.MAX_VALUE.toLong() - 1_000_000_000L)
         assertEquals(LiteRtReplyEngine.MODEL_NAME, spec.filename)
         assertEquals(LiteRtReplyEngine.MODEL_BYTES, spec.sizeBytes)
         assertEquals(LiteRtReplyEngine.MODEL_SHA256, spec.sha256)
         assertEquals(64, spec.sha256.length)
+    }
+
+    @Test fun taglishMarkersCoverCommonCasualWords() {
+        assertEquals(ReplyLanguage.FILIPINO, ReplyLanguage.detect("Bro, long time no see! Tara kape later?"))
     }
 }

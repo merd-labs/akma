@@ -13,7 +13,7 @@ This template is intentionally NOT a claim that a tool/model was used. It must b
 | Matt Pocock Skills | Not installed by this bootstrap | Miguel owns optional setup | Deferred |
 | LiteRT-LM (Android) | `com.google.ai.edge.litertlm:litertlm-android:0.18.0`, CPU | On-device inference in `LiteRtReplyEngine` | Integrated; physical-device results only as recorded in `docs/evidence` / `MODEL_VALIDATION.md` |
 | LiteRT-LM (desktop prompt lab) | Python `litert-lm-api` | Prompt/evaluation research, not part of the APK | Observed on desktop only |
-| Model artifact | `Qwen3_1.7B.litertlm` from `litert-community/Qwen3-1.7B` (Hugging Face), 2,056,729,520 bytes, SHA-256 `66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c` | Bundled in the release APK (git-ignored asset) | Weights are third-party; the license must be confirmed from the model card before submission - **not verified by this record** |
+| Model artifact | `gemma-4-E2B-it.litertlm` from `litert-community/gemma-4-E2B-it-litert-lm` (Hugging Face; base `google/gemma-4-E2B-it`), 2,588,147,712 bytes, SHA-256 `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c` | Sideloaded with `adb push` (ignored by version control; too large to bundle) | Weights are third-party; the model card lists Apache-2.0, to be confirmed by the owner before submission - **not verified by this record** |
 | Gemma 3 1B Q4 | Desktop comparison only | Prompt lab research | Not shipped |
 | Kotlin/AGP/Android SDK versions | Kotlin 2.4.0, AGP 8.11.1, Gradle 8.14, JDK 17, SDK 36, minSdk 30 | Android build | See `BOOTSTRAP_VERIFICATION.md` |
 | AndroidX / unit tests | Compose, Activity Compose, JUnit 4.13.2 | Compose UI and domain validation | AndroidX Apache-2.0, JUnit EPL-1.0 |

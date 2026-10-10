@@ -3,26 +3,20 @@ param(
     [string]$ModelPath
 )
 
+# Gemma 4 E2B is larger than the 2 GiB APK-asset limit, so it is NOT bundled. This script verifies the
+# model file against the pin, builds the APK without it, and prints the sideload commands.
 $ErrorActionPreference = 'Stop'
-$modelName = 'Qwen3_1.7B.litertlm'
-$expectedBytes = 2056729520L
-$expectedHash = '66064A4E9269CB693E124C4E3040BCB8A446B10BCA42663896329495ADD3861C'
+$modelName = 'gemma-4-E2B-it.litertlm'
+$expectedBytes = 2588147712L
+$expectedHash = '181938105E0EEFD105961417E8DA75903EACDA102C4FCE9CE90F50B97139A63C'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $source = (Resolve-Path -LiteralPath $ModelPath).Path
-$destination = Join-Path $repo "app/src/main/assets/$modelName"
 
 if ((Get-Item -LiteralPath $source).Length -ne $expectedBytes) {
     throw 'Model size does not match the pinned artifact.'
 }
 if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne $expectedHash) {
     throw 'Model SHA-256 does not match the pinned artifact.'
-}
-if (-not (Test-Path -LiteralPath $destination)) {
-    Copy-Item -LiteralPath $source -Destination $destination
-}
-if ((Get-Item -LiteralPath $destination).Length -ne $expectedBytes -or
-    (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne $expectedHash) {
-    throw 'Bundled model does not match the pin; an existing asset was not overwritten.'
 }
 Push-Location $repo
 try {
@@ -33,3 +27,6 @@ try {
 } finally {
     Pop-Location
 }
+Write-Host 'Install the APK, open Akma once, then sideload the model:'
+Write-Host '  adb shell mkdir -p /sdcard/Android/data/ph.merd.akma/files/models'
+Write-Host "  adb push `"$source`" /sdcard/Android/data/ph.merd.akma/files/models/$modelName"

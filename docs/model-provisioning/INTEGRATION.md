@@ -10,7 +10,7 @@ The integration owner replaces PR #26's copy/rename/full-hash block with this se
 private val provisioner = BundledModelProvisioner(app)
 
 // In the existing suspend initialize(), after closing the previous engine:
-val model = when (val result = provisioner.ensureBundledModel(BundledQwenArtifact.spec)) {
+val model = when (val result = provisioner.ensureBundledModel(LocalModelArtifact.spec)) {
     is ModelProvisionResult.Verified -> result.model.file
     is ModelProvisionResult.Failure -> error("Model provisioning failed: ${result.reason}")
 }
@@ -19,7 +19,19 @@ val model = when (val result = provisioner.ensureBundledModel(BundledQwenArtifac
 
 The domain LocalReplyEngine API is unchanged. Typed provisioning failure must remain an error, never Ready or a synthetic reply. On native model-loading failure, call `provisioner.invalidateVerification()` before retrying so the next attempt performs full validation. This method deletes no files. Native crash/OOM/linkage recovery remains with the runtime/domain owner.
 
-`BundledQwenArtifact.spec` records the Qwen3-1.7B int8 pin (replacing the owner's PR #26 Qwen2.5 pin): filename `Qwen3_1.7B.litertlm`, revision `73fbc3fe8271c162a603ee66f6e7ed25b6211195`, 2,056,729,520 bytes, SHA-256 `66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c`, LiteRT-LM format. The pinned [source artifact](https://huggingface.co/litert-community/Qwen3-1.7B/blob/73fbc3fe8271c162a603ee66f6e7ed25b6211195/Qwen3_1.7B.litertlm) publishes the same SHA. Model replacement requires owner review and fresh device proof.
+`LocalModelArtifact.spec` records the Gemma 4 E2B pin (replacing the owner's PR #26 Qwen2.5 pin and the interim Qwen3-1.7B pin): filename `gemma-4-E2B-it.litertlm`, revision `b3ca0d2f076785a8f4b2219ddbd2bdb99954eae1`, 2,588,147,712 bytes, SHA-256 `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c`, LiteRT-LM format, Apache-2.0. The pinned [source artifact](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/blob/b3ca0d2f076785a8f4b2219ddbd2bdb99954eae1/gemma-4-E2B-it.litertlm) publishes the same SHA. Model replacement requires owner review and fresh device proof.
+
+## Sideloading (Gemma 4 E2B)
+
+The file is larger than the 2 GiB single-asset limit, so it is **not bundled**. `openModelSource` uses a bundled asset when present, otherwise `<app external files>/models/<filename>`. Push it once per demo phone (the app directory exists after first launch):
+
+```bash
+adb shell mkdir -p /sdcard/Android/data/ph.merd.akma/files/models
+adb push gemma-4-E2B-it.litertlm /sdcard/Android/data/ph.merd.akma/files/models/
+```
+
+On first model check the app copies it to `filesDir/models` through the same size/header/SHA-256 verification (needs about 2.6 GB plus the 256 MiB reserve free), and later runs reuse that copy. A wrong or truncated push fails as a typed provisioning error and nothing is published. The pushed file is left in place; remove it manually to reclaim space. App-scoped external storage needs no permission on API 30.
+
 
 ## Integrity and recovery
 
@@ -31,16 +43,16 @@ The bundled provisioner caches a verified file within its own lifetime. Before r
 
 ## Repeatable release verification
 
-Use JDK 17 and the checked-in Gradle Wrapper. The integration owner owns LiteRT/Kotlin pins, Gradle, manifest and UI reconciliation. Keep weights/APKs ignored and outside commits. Download the named artifact from the pinned revision into a temporary file, verify it, then publish it to the ignored asset location. Do not build a release candidate from an incomplete download.
+Use JDK 17 and the checked-in Gradle Wrapper. The `--apk` packaging checks apply only to a model bundled in the APK; Gemma 4 E2B is sideloaded, so use `--model` only for it. The integration owner owns LiteRT/Kotlin pins, Gradle, manifest and UI reconciliation. Keep weights/APKs ignored and outside commits. Download the named artifact from the pinned revision into a temporary file, verify it, then publish it to the ignored asset location. Do not build a release candidate from an incomplete download.
 
 Ubuntu Bash:
 
 ```bash
 export JAVA_HOME=/path/to/jdk17
 export ANDROID_HOME=/path/to/android-sdk
-bash scripts/provision/verify-release.sh --model "$MODEL_FILE" 2056729520 66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c
+bash scripts/provision/verify-release.sh --model "$MODEL_FILE" 2588147712 181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c
 ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
-bash scripts/provision/verify-release.sh --apk "$APK_FILE" Qwen3_1.7B.litertlm 2056729520 66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c
+bash scripts/provision/verify-release.sh --apk "$APK_FILE" gemma-4-E2B-it.litertlm 2588147712 181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c
 "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$APK_FILE"
 "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest min-sdk "$APK_FILE"
 ```
@@ -50,9 +62,9 @@ Windows PowerShell (use existing local installation paths):
 ```powershell
 $env:JAVA_HOME = $Jdk17Directory
 $env:ANDROID_HOME = $AndroidSdkDirectory
-.\scripts\provision\verify-release.ps1 --model $ModelFile 2056729520 66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c
+.\scripts\provision\verify-release.ps1 --model $ModelFile 2588147712 181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c
 .\gradlew.bat --no-daemon --max-workers=2 :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
-.\scripts\provision\verify-release.ps1 --apk $ApkFile Qwen3_1.7B.litertlm 2056729520 66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c
+.\scripts\provision\verify-release.ps1 --apk $ApkFile gemma-4-E2B-it.litertlm 2588147712 181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c
 & "$env:ANDROID_HOME\cmdline-tools\latest\bin\apkanalyzer.bat" manifest application-id $ApkFile
 & "$env:ANDROID_HOME\cmdline-tools\latest\bin\apkanalyzer.bat" manifest min-sdk $ApkFile
 ```

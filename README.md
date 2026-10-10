@@ -1,6 +1,6 @@
 # Akma — MERD / Cerebral Valley Hackathon 2026
 
-**Status:** Android app with a Compose Activity, a user-started floating overlay, an action catalog with second-confirmation gate, output-safety checks, and an on-device **Qwen3-1.7B (int8, `.litertlm`)** engine running through LiteRT-LM 0.18.0 (CPU). **Release** builds bundle the model and use the real engine; **debug** builds use a clearly-marked demo engine and are not evidence of inference. Unit tests (JVM, synthetic engine) cover the journey state machine; they do **not** prove native model behaviour. On-device results are recorded only in [docs/evidence](docs/evidence/) and [docs/MODEL_VALIDATION.md](docs/MODEL_VALIDATION.md); anything not recorded there is **NOT TESTED**.
+**Status:** Android app with a Compose Activity, a user-started floating overlay, an action catalog with second-confirmation gate, output-safety checks, and an on-device **Gemma 4 E2B (`.litertlm`, sideloaded)** engine running through LiteRT-LM 0.18.0 (CPU). **Release** builds use the real engine with a sideloaded model (see docs/model-provisioning/INTEGRATION.md); **debug** builds use a clearly-marked demo engine and are not evidence of inference. Unit tests (JVM, synthetic engine) cover the journey state machine; they do **not** prove native model behaviour. On-device results are recorded only in [docs/evidence](docs/evidence/) and [docs/MODEL_VALIDATION.md](docs/MODEL_VALIDATION.md); anything not recorded there is **NOT TESTED**.
 
 **Pova 2 baseline:** Android 11/API 30, physical **6 GB RAM / 128 GB storage capacity** (MERD-reported). Free capacity and current available RAM remain to be measured with ADB. Do not claim 4GB compatibility.
 
@@ -58,8 +58,8 @@ No APK or model weights are committed (the `.litertlm` asset is git-ignored and 
 
 ## 🧠 Model Integration Status
 
-1. **Desktop model research:** Qwen2.5 1.5B Q8 was evaluated first in the desktop prompt lab (LiteRT-LM); Qwen3-1.7B replaced it for latency, see [docs/evidence/qwen3-1p7b-latency.md](docs/evidence/qwen3-1p7b-latency.md).
-2. **Android integration:** bundled `Qwen3_1.7B.litertlm` (2,056,729,520 bytes, SHA-256 `66064a4e9269cb693e124c4e3040bcb8a446b10bca42663896329495add3861c`), loaded by `LiteRtReplyEngine`.
+1. **Desktop model research:** Qwen2.5 1.5B Q8 was evaluated first in the desktop prompt lab (LiteRT-LM), then Qwen3-1.7B ([docs/evidence/qwen3-1p7b-latency.md](docs/evidence/qwen3-1p7b-latency.md)); Gemma 4 E2B replaced it for Filipino/Taglish quality ([docs/evidence/gemma4-e2b-filipino-gate.md](docs/evidence/gemma4-e2b-filipino-gate.md)).
+2. **Android integration:** sideloaded `gemma-4-E2B-it.litertlm` (2,588,147,712 bytes, SHA-256 `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c`), loaded by `LiteRtReplyEngine`.
 3. **Physical-device results:** see [docs/MODEL_VALIDATION.md](docs/MODEL_VALIDATION.md); not-yet-recorded items are **NOT TESTED**.
 
 ## AI / Local AI disclosures

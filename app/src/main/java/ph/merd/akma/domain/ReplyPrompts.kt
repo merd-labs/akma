@@ -15,6 +15,7 @@ enum class ReplyLanguage {
             "natin", "niyo", "nyo", "ito", "yung", "'yung", "iyon", "doon", "dito", "hindi", "oo", "salamat", "kumusta",
             "magandang", "pwede", "puwede", "bukas", "mamaya", "ngayon", "lang", "naman", "sana", "kasi", "pero", "para",
             "ano", "sino", "kailan", "saan", "paano", "bakit", "gusto", "kung", "din", "rin", "pa", "ay", "si", "ni", "kay",
+            "tara", "sige", "uy", "naku", "kape",
         )
         private val english = setOf(
             "the", "is", "are", "was", "were", "you", "your", "can", "could", "would", "will", "we", "i", "to", "for",
@@ -61,7 +62,7 @@ internal object ReplyPrompts {
      */
     private val actionRules = mapOf(
         "accept" to "Politely accept.",
-        "reschedule" to "Politely ask if we can meet at a different time instead.",
+        "reschedule" to "Politely ask if we can meet at a different time instead. Do not say whether you are free.",
         "clarify" to "Ask what the details are (time, place, agenda). Do not agree yet.",
         "decline" to "Politely say you cannot.",
         "confirm" to "Confirm that you will attend.",
